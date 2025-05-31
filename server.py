@@ -42,7 +42,7 @@ class ReverseShellHandler:
                 response = await reader.readuntil(b"__END__")
                 print(response.decode().rstrip("\n__END__"))
 
-        except (EOFError, KeyboardInterrupt):
+        except (OSError,KeyboardInterrupt):
             print("\n[-] Interrupted by user. Closing connection.")
             writer.close()
             await writer.wait_closed()
@@ -55,7 +55,6 @@ async def run_reverse_shell_server():
     """
     shutdown_event = asyncio.Event()
     handler = ReverseShellHandler(shutdown_event)
-
     server = await asyncio.start_server(handler, SERVER_HOST, SERVER_PORT)
     print(f"[+] Listening for incoming connections on {SERVER_HOST}:{SERVER_PORT}")
     try:
@@ -68,6 +67,10 @@ async def run_reverse_shell_server():
         print("[-] Server shutdown requested.")
 
 
+
 # Entry point
 if __name__ == "__main__":
-    asyncio.run(run_reverse_shell_server())
+    try:
+        asyncio.run(run_reverse_shell_server())
+    except OSError as e:
+        print(f"[-] {e.args[1]}")
