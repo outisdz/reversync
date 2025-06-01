@@ -20,7 +20,7 @@ A simple, asynchronous reverse shell implemented in Python using `asyncio`. This
 ## 📦 Requirements
 
 - Python 3.7+
-- No external dependencies (uses Python standard library).
+- The `client.py` file on the **target/victim** machine has no external dependencies and uses only the Python standard library.
 
 ---
 
