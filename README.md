@@ -157,9 +157,9 @@ reversync
 │  [+] sysinfo                  - Retrieve system information from the target machine  │
 │  [+] targets                  - List all connected machines                          │
 │  [+] select target <int>      - Select a target machine by its index                 │
-│  [+] clear                   - Clear the console output                              │
-│  [+] help                    - Show this help menu                                   │
-│  [+] shutdown                - Shut down the server and disconnect all targets       │
+│  [+] clear                    - Clear the console output                             │
+│  [+] help                     - Show this help menu                                  │
+│  [+] shutdown                 - Shut down the server and disconnect all targets      │
 │                                                                                      │
 ╰──────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ Server Output @remote-shell >  ─────────────────────────────────────────────────────╮
