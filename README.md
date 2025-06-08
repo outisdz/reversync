@@ -148,17 +148,30 @@ Y                                       Y
 reversync
 ...
 
-[+] Listening for incoming connections on 127.0.0.1:1234
-
-@remote-shell > targets
-1 - ('127.0.0.1', 54321)
-
-@remote-shell > select target 1
-('127.0.0.1', 54321)@remote-shell > sysinfo
-Current Working Directory: /home/user
-Hostname: mymachine
-System Name: Linux
-Release: 5.15.0-50-generic
+╭─ Server Output @remote-shell >  ─────────────────────────────────────────────────────────────────────────────────────╮
+│ [+] Listening for incoming connections on 127.0.0.1:1234                                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Server Output @remote-shell >  ─────────────────────────────────────────────────────────────────────────────────────╮
+│ Available Commands:                                                                                                  │
+│  [+] exit                     - Exit from the current target session                                                 │
+│  [+] sysinfo                  - Retrieve system information from the target machine                                  │
+│  [+] targets                  - List all connected machines                                                          │
+│  [+] select target <int>      - Select a target machine by its index                                                 │
+│  [+] clear                   - Clear the console output                                                              │
+│  [+] help                    - Show this help menu                                                                   │
+│  [+] shutdown                - Shut down the server and disconnect all targets                                       │
+│                                                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Server Output @remote-shell >  ─────────────────────────────────────────────────────────────────────────────────────╮
+│ 1 - ('127.0.0.1', 35656)                                                                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Server Output ('127.0.0.1', 35656)@remote-shell >  ─────────────────────────────────────────────────────────────────╮
+│ Current Working Directory: /home/user/reversync                                                                      │
+│ Hostname: target-machine                                                                                             │
+│ System Name: Linux                                                                                                   │
+│ Release: 5.15.0-50-generic                                                                                           │
+│ ...                                                                                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ...
 ```
 
