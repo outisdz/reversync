@@ -114,9 +114,38 @@ Server:
 ```
 $ python server.py
 
- ____  ______  __    __  ______  __    __   ______   __   __   ______
-|    \|      \|  \  |  \|      \|  \  |  \ /      \ |  \ |  \ /      \
-| $$$$| $$$$$$| $$  | $$| $$$$$$| $$  | $$|  $$$$$$\| $$ | $$|  $$$$$$\
+ .S_sSSs      sSSs   .S    S.     sSSs   .S_sSSs    
+.SS~YS%%b    d%%SP  .SS    SS.   d%%SP  .SS~YS%%b   
+S%S   `S%b  d%S'    S%S    S%S  d%S'    S%S   `S%b  
+S%S    S%S  S%S     S%S    S%S  S%S     S%S    S%S  
+S%S    d*S  S&S     S&S    S%S  S&S     S%S    d*S  
+S&S   .S*S  S&S_Ss  S&S    S&S  S&S_Ss  S&S   .S*S  
+S&S_sdSSS   S&S~SP  S&S    S&S  S&S~SP  S&S_sdSSS   
+S&S~YSY%b   S&S     S&S    S&S  S&S     S&S~YSY%b   
+S*S   `S%b  S*b     S*b    S*S  S*b     S*S   `S%b  
+S*S    S%S  S*S.    S*S.   S*S  S*S.    S*S    S%S  
+S*S    S&S   SSSbs   SSSbs_S*S   SSSbs  S*S    S&S  
+S*S    SSS    YSSP    YSSP~SSS    YSSP  S*S    SSS  
+SP                                      SP          
+Y                                       Y           
+                                                    
+        sSSs   .S S.    .S_sSSs      sSSs  
+       d%%SP  .SS SS.  .SS~YS%%b    d%%SP  
+      d%S'    S%S S%S  S%S   `S%b  d%S'    
+      S%|     S%S S%S  S%S    S%S  S%S     
+      S&S     S%S S%S  S%S    S&S  S&S     
+      Y&Ss     SS SS   S&S    S&S  S&S     
+      `S&&S     S S    S&S    S&S  S&S     
+        `S*S    SSS    S&S    S&S  S&S     
+         l*S    S*S    S*S    S*S  S*b     
+        .S*P    S*S    S*S    S*S  S*S.    
+      sSS*S     S*S    S*S    S*S   SSSbs  
+      YSS'      S*S    S*S    SSS    YSSP  
+                SP     SP                  
+                Y      Y                   
+                                           
+
+reversync
 ...
 
 [+] Listening for incoming connections on 127.0.0.1:1234
