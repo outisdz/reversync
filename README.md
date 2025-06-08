@@ -1,122 +1,149 @@
-# 🌀 ReverseSync
+# reverSync: ⚡ Asynchronous Python Reverse Shell
 
-A simple, asynchronous reverse shell implemented in Python using `asyncio`. This project consists of a server (`server.py`) and a client (`client.py`) that allow for remote command execution over a TCP connection.
-
-> **⚠️ Disclaimer:**  
-> This tool is developed strictly for educational purposes, security research, and authorized penetration testing. **Do not use it on any system or network without explicit permission.** Unauthorized use may be illegal.
+![Reverse Shell Icon](https://img.icons8.com/ios-filled/50/000000/console.png)  
+**reverSync** is an asynchronous Python reverse shell framework for remote command execution and system information retrieval. It features a modern, styled server console interface, multi-target management, and robust communication between server and client via asyncio.
 
 ---
 
 ## ✨ Features
 
-- **Asynchronous I/O** for efficient and responsive communication.
-- Interactive shell: Send commands from the server to the client and receive output in real time.
-- Handles `cd` (change directory), permission errors, and command execution feedback.
-- Clean shutdown on `exit` or interruption.
-- Easy to configure and run.
+- 🐚 **Reverse Shell:** Remotely execute shell commands on connected targets.
+- 🖥️ **Multi-Target Management:** Handle multiple clients, switch between them, and monitor their connection status.
+- 🖲️ **Interactive Server Console:** Beautiful and user-friendly terminal UI with command history, help menu, and real-time status updates using [blessed](https://pypi.org/project/blessed/) and [rich](https://pypi.org/project/rich/).
+- 📝 **System Information:** On connection and upon request, the client sends detailed system info (OS, hostname, CPU, Python version, environment, etc.).
+- 🧹 **Graceful Shutdown:** Cleanly disconnects all clients and shuts down with proper notifications.
+- 🧩 **Extensible:** Easy to add more commands or functionality.
 
 ---
 
 ## 📦 Requirements
 
-- Python 3.7+
-- The `client.py` file on the **target/victim** machine has no external dependencies and uses only the Python standard library.
+- 🐍 **Python 3.7+**
+- **Server-side dependencies:**  
+  - [rich](https://pypi.org/project/rich/)
+  - [blessed](https://pypi.org/project/blessed/)
+  - [pyfiglet](https://pypi.org/project/pyfiglet/)
+- **Client:**  
+  - The `client.py` file on the target/victim machine has **no external dependencies** and uses only the Python standard library.
 
----
-
-## 🚀 Usage
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/outisdz/reversync.git
-cd reversync
-```
-
-### 2. Start the Server
-
-On the **attacker/controller** machine:
+Install requirements for the server:
 
 ```bash
-python3 server.py
+pip install rich blessed pyfiglet
 ```
 
-- The server listens by default on `127.0.0.1:1234`.
-- To use a different address or port, modify the `SERVER_HOST` and `SERVER_PORT` variables at the top of `server.py`.
+---
 
-### 3. Start the Client
+## 🛠️ Usage
 
-On the **target/victim** machine (or another terminal):
+### 1. Start the Server
 
 ```bash
-python3 client.py
+python server.py
 ```
 
-- By default, the client connects to `127.0.0.1:1234`.
-- To connect to a different server, modify `SERVER_HOST` and `SERVER_PORT` in `client.py`.
+- The server listens for incoming connections on `127.0.0.1:1234` by default.
+- You will see an ASCII-art logo and an interactive shell prompt.
 
-### 4. Interact
+### 2. Start the Client(s)
 
-- Once the client connects, the server prompt appears:
-  ```
-  ('127.0.0.1', 55555)@remote-shell >
-  ```
-- Type shell commands (e.g., `ls`, `pwd`, `cat file.txt`) and see the output.
-- Use `cd <path>` to change directories on the client.
-- Type `clear` to clear your server terminal.
-- Type `exit` to terminate the session and shut down the server.
+On the target machine (or another terminal):
+
+```bash
+python client.py
+```
+
+- The client will attempt to connect to the server at `127.0.0.1:1234`  
+  (edit `SERVER_HOST` and `SERVER_PORT` in `client.py` to adjust).
 
 ---
 
-## 🖥️ Example
+## 🖥️ Server Console Commands
 
-**Server:**
-```
-$ python3 server.py
-[+] Listening for incoming connections on 127.0.0.1:1234
-[+] Connection established from ('127.0.0.1', 54321). Type 'exit' to terminate session.
-('127.0.0.1', 54321)@remote-shell > pwd
-/home/user
-('127.0.0.1', 54321)@remote-shell > ls
-client.py
-server.py
-README.md
-('127.0.0.1', 54321)@remote-shell > exit
-[-] Closing connection and shutting down server...
-[-] Shutdown signal received. Closing server...
-```
-
-**Client:**
-```
-$ python3 client.py
-[+] Connected to reverse shell server at 127.0.0.1:1234
-[>] Executing command: pwd (Current directory: /home/user)
-[>] Executing command: ls (Current directory: /home/user)
-[-] Connection closed by 127.0.0.1:1234
-```
+| 🏷️ Command                 | 📝 Description                                               |
+|----------------------------|-------------------------------------------------------------|
+| `help`                     | Show the help menu.                                         |
+| `targets`                  | List all connected client machines.                         |
+| `select target <int>`      | Switch to a different client by its index (see `targets`).  |
+| `sysinfo`                  | Retrieve detailed system info from the target.              |
+| `exit`                     | Exit the current target session (not the server itself).    |
+| `clear`                    | Clear the console output.                                   |
+| `shutdown`                 | Disconnect all clients and shutdown the server.             |
+| _Any other command_        | Will be executed remotely in the client's shell.            |
 
 ---
 
-## 🔒 Security Warning
+## 📁 File Overview
 
-- **Never expose this server to the public internet unless you understand the security implications.**
-- All data is sent in plaintext (no encryption).
-- Anyone who can connect to the server can execute commands on the client.
+- **server.py**: Main server logic, connection management, and interactive command loop.
+- **server_console.py**: Terminal UI and input/output handling for the server using blessed and rich.
+- **client.py**: Client logic that connects to the server and executes commands.
+- **sysinfo.py**: Utility to gather system information on the client.
 
 ---
 
-> **📝 Note:**  
-> In the future, I plan to add a security layer so that communication between the server and the target is encrypted, as well as to implement an additional protocol for safer and more flexible usage.  
-> **Feel free to modify and improve this project as you like—I will read every comment and suggestion!**
+## 🛠️ Customization
+
+- Change the server IP/port in both `server.py` and `client.py`.
+- Add or modify commands in `server.py` and `client.py` for custom tasks.
+- Adjust the ASCII logo and UI in `server_console.py` to suit your needs.
 
 ---
 
 ## 📄 License
 
-[MIT](LICENSE)
+MIT License. See `LICENSE` file for details.
 
 ---
 
-## 🎓 Educational Purposes Only
+## 👏 Credits
 
-This tool is provided as-is for learning and authorized testing. The author is **not responsible for any misuse or damage** caused by this software.
+- [rich](https://github.com/Textualize/rich) for styled terminal output
+- [blessed](https://github.com/jquast/blessed) for terminal handling
+- [pyfiglet](https://github.com/pwaller/pyfiglet) for ASCII art
+
+---
+
+## 💻 Example Session
+
+Server:
+```
+$ python server.py
+
+ ____  ______  __    __  ______  __    __   ______   __   __   ______
+|    \|      \|  \  |  \|      \|  \  |  \ /      \ |  \ |  \ /      \
+| $$$$| $$$$$$| $$  | $$| $$$$$$| $$  | $$|  $$$$$$\| $$ | $$|  $$$$$$\
+...
+
+[+] Listening for incoming connections on 127.0.0.1:1234
+
+@remote-shell > targets
+1 - ('127.0.0.1', 54321)
+
+@remote-shell > select target 1
+('127.0.0.1', 54321)@remote-shell > sysinfo
+Current Working Directory: /home/user
+Hostname: mymachine
+System Name: Linux
+Release: 5.15.0-50-generic
+...
+```
+
+---
+
+## ⚠️ Security Warning
+
+> **Never expose this server to the public internet unless you understand the security implications.**
+>
+> - 🔓 **All data is sent in plaintext (no encryption).**
+> - 🧑‍💻 **Anyone who can connect to the server can execute commands on the client.**
+
+---
+
+> 📝 **Note:**  
+> In the future, I plan to add a security layer so that communication between the server and the target is encrypted, as well as to implement an additional protocol for safer and more flexible usage.  
+> **Feel free to modify and improve this project as you like—I will read every comment and suggestion!**
+
+---
+
+**Enjoy hacking (ethically)!** 🚀
