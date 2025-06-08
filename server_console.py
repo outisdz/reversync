@@ -18,10 +18,13 @@ class ServerConsole:
     """
     def __init__(self,logo):
         """Initialize terminal, buffers, and default shell_prompt."""
+        # font: amc_aaa01
+        # font: ansi_regular
+        # font: ansi_shadow
+        # font: roman
+        print('\n'+f'{GREEN}{BOLD}' + pyfiglet.figlet_format("rever\n sync".upper(),font="amc_aaa01") + f'\n{logo}' + f'{RESET}')
 
         self._term = Terminal()
-        print('\n'+f'{GREEN}{BOLD}' + pyfiglet.figlet_format("rever\n sync".upper(),font="ghost") + f'\n{logo}' + f'{RESET}')
-
         self._output_buffer = []                    # Stores printed messages
         self._input_buffer = []                     # Stores currently typed characters
         self._shell_prompt = '@remote-shell > '     # Default prompt label
