@@ -1,12 +1,13 @@
 import os
 import platform
 import sys
+import getpass
 
 
 class TargetSysInfo:
     def __init__(self):
         uname = platform.uname()
-        #self.cwd = os.getcwd()
+        self.username = getpass.getuser()
         self.hostname = uname.node or platform.node()
         self.sysname = uname.system
         self.release = uname.release
@@ -25,6 +26,7 @@ class TargetSysInfo:
         return (
             f"Current Working Directory: {self.cwd}\n"
             f"Hostname: {self.hostname}\n"
+            f"Username: {self.username}\n"
             f"System Name: {self.sysname}\n"
             f"Release: {self.release}\n"
             f"Version: {self.version}\n"
@@ -33,7 +35,7 @@ class TargetSysInfo:
             f"Python Version: {self.python_version}\n"
             f"Logical CPU Cores: {self.cpu_count}\n"
             f"Environment Variables: {len(self.environ)} entries"
-        ).encode()
+        )
 
 
 if __name__ == '__main__':
