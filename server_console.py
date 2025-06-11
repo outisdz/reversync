@@ -33,8 +33,6 @@ class ServerConsole:
         self.shell_prompt = '@remote-shell > '      # Default prompt label
         self.run = True                             # Controls the main input loop
         self._index = 1
-        #readline.read_history_file('/home/arch/.python_history')
-        #print(readline.get_history_item(3),readline.get_current_history_length())
 
 
     @property
