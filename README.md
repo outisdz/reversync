@@ -80,7 +80,7 @@ python client.py
 ## 📁 File Overview
 
 - **server.py**: Main server logic, connection management, and interactive command loop.
-- **server_console.py**: Terminal UI and input/output handling for the server using blessed and rich.
+- **interactiveconsole.py**: Terminal UI and input/output handling for the server using blessed and rich.
 - **client.py**: Client logic that connects to the server and executes commands.
 - **sysinfo.py**: Utility to gather system information on the client.
 
@@ -90,7 +90,7 @@ python client.py
 
 - Change the server IP/port in both `server.py` and `client.py`.
 - Add or modify commands in `server.py` and `client.py` for custom tasks.
-- Adjust the ASCII logo and UI in `server_console.py` to suit your needs.
+- Adjust the ASCII logo and UI in `interactiveconsole.py` to suit your needs.
 
 ---
 
