@@ -3,7 +3,7 @@ import json
 import struct
 import subprocess
 from asyncio import CancelledError, IncompleteReadError
-from server_console import InteractiveConsole
+from interactiveconsole import InteractiveConsole
 from targetsInfo import TargetInfo, Targets
 
 
