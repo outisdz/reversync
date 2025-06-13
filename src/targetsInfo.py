@@ -28,6 +28,12 @@ class Targets:
             self.current_target = list(self.connections)[i]
             return
         self.current_target = ''
+
+    def get_target_address(self, i=0):
+        if list(self.connections):
+            return list(self.connections)[i]
+        return ''
+
     @property
     def current_address(self):
         """Returns the currently selected client address."""

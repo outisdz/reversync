@@ -13,7 +13,7 @@ GREEN = "\033[32m"
 RESET = "\033[0m"
 RED = "\033[31m"
 
-class ServerConsole:
+class InteractiveConsole:
     """
     A terminal-based interactive shell for a reverse shell server interface.
     Provides input handling, output rendering, and styled interface using 'blessed' and 'rich'.
@@ -69,9 +69,9 @@ class ServerConsole:
         :return: The final string input when the user presses Enter
         """
         with self._term.cbreak():
-
             while self.run:
                 self.print()
+                # Non-blocking key read: waits 0.1s for input, then continues if no key is pressed
                 key = self._term.inkey(0.1)
                 if not key:
                     continue
@@ -109,8 +109,8 @@ class ServerConsole:
                             return data
                     readline.add_history(data)
                     return data
-                # add the key if it's a readable char
-                self._input_buffer.append(key)
+                if key.isprintable():
+                    self._input_buffer.append(key)
             return ''
 
     def print_input(self,data:str):
@@ -177,12 +177,10 @@ class ServerConsole:
         Stop the console input loop and clear all buffers.
         Useful for gracefully shutting down the interface.
         """
-        self._output_buffer.clear()
-        self._input_buffer.clear()
         self.run = False
+        self.clear()
 
     def clear(self):
         self._output_buffer.clear()
         self._input_buffer.clear()
         self.shell_prompt = '@remote-shell > '
-
