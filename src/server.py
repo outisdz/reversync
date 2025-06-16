@@ -312,7 +312,7 @@ if __name__ == "__main__":
     console = InteractiveConsole("reversync")
 
     if not verify_files('cert.pem','key.pem','pswd'):
-        console.error = 'verify the files'
+        console.error = 'File verification failed.'
         sys.exit(0)
 
     try:
