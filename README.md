@@ -1,19 +1,27 @@
 # reverSync: ⚡ Asynchronous Python Reverse Shell
 
-![Reverse Shell Icon](https://img.icons8.com/ios-filled/50/000000/console.png)
+[![Python](https://img.shields.io/badge/Python-3.7%2B-blue.svg)](https://www.python.org/)
+[![Rich Output](https://img.shields.io/badge/Output-Rich-6e4aff)](https://github.com/Textualize/rich)
+
 **reverSync** is an asynchronous Python reverse shell framework for secure, authenticated, and encrypted remote command execution and system information retrieval. It features a modern, styled server console interface, multi-target management, HMAC authentication, SSL encryption, and robust communication between server and client via asyncio.
 
 ---
 
-## ✨ Features
+## 🚀 Features
 
-- 🐚 **Reverse Shell:** Remotely execute shell commands on connected targets.
-- 🖥️ **Multi-Target Management:** Handle multiple clients, switch between them, and monitor their connection status.
-- 🔒 **Encrypted Connections:** All traffic between client and server uses SSL/TLS encryption.
-- 🛡️ **HMAC Authentication:** Challenge-response password authentication before accepting a client.
-- 🖲️ **Interactive Server Console:** Beautiful and user-friendly terminal UI with command history, help menu, and real-time status updates using [blessed](https://pypi.org/project/blessed/) and [rich](https://pypi.org/project/rich/).
-- 📝 **System Information:** On connection and upon request, the client sends detailed system info (OS, hostname, CPU, Python version, environment, etc.).
-- 🧹 **Graceful Shutdown:** Cleanly disconnects all clients and shuts down with proper notifications.
+- ⚡ **Asynchronous Reverse Shell:** Both server and client use Python's `asyncio` for high-performance, non-blocking communication.
+- 🔒 **SSL Encryption:** All communication is secured with SSL/TLS to prevent eavesdropping.
+- 🛂 **HMAC Authentication:** Implements HMAC-based challenge-response authentication for client validation.
+- 💻 **Interactive Server Console:** The server features a rich terminal UI (using `rich` and `blessed`) for managing multiple targets interactively.
+- 🖥️ **Multi-client Management:** Easily connect, select, and manage multiple reverse shell clients from a single console.
+- 📝 **Command Execution:** Remotely execute shell commands on connected clients and view real-time output/errors.
+- 📁 **File Transfer (Pull):** Securely fetch files from remote clients using the `pull` command, with base64 encoding for safe transmission.
+- 🖲️ **Target System Info:** Retrieve and display system information from each connected client.
+- 🛰️ **Session Management:** Easily select, view, disconnect, and stop client sessions with intuitive commands.
+- ⬆️ **Persistent Command History:** Use arrow keys to navigate command history in the interactive console.
+- 📂 **Directory Navigation:** Use `cd` commands to change directories on the remote client.
+- 🧹 **Graceful Shutdown:** Cleanly disconnect clients and shut down the server with proper resource cleanup.
+- 🛡️ **Error Handling:** Robust error messages and feedback for all commands and connection states.
 - 🧩 **Extensible:** Easy to add more commands or functionality.
 
 ---
@@ -31,29 +39,27 @@
 > **Note:**
 > SSL certificate and key files (`cert.pem`, `key.pem`) and a password file (`pswd`) are required for the server to start.
 
-Install requirements for the server:
-
-```bash
-pip install rich blessed pyfiglet
-```
 
 ---
 
-## 🛠️ Usage
+## 🛠️ Setup
 
-### 1. Generate SSL Certificates and Password File
+### 1. Clone the repository:
+    ```bash
+    git clone https://github.com/outisdz/reversync.git
+    cd reversync
+    ```
+2. Install dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
+3. Generate SSL certificates (if not already present):
+    ```bash
+    openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
+    ```
+4. Create a password file named `pswd` in the root directory with your shared secret (one line, no spaces).
 
-Generate a self-signed certificate and key (if you don't have them):
-
-```bash
-openssl req -new -x509 -days 365 -nodes -out cert.pem -keyout key.pem
-```
-
-Create a password file (containing a single line with your shared secret; e.g. `pswd`):
-
-```bash
-echo -n "yourpassword" > pswd
-```
+---
 
 ### 2. Start the Server
 
@@ -80,17 +86,18 @@ python client.py
 
 ## 🖥️ Server Console Commands
 
-| 🏷️ Command                 | 📝 Description                                               |
-|----------------------------|-------------------------------------------------------------|
-| `help`                     | Show the help menu.                                         |
-| `targets`                  | List all connected client machines.                         |
-| `select target <int>`      | Switch to a different client by its index (see `targets`).  |
-| `stop <int>`               | Disconnect a target by its index.                           |
-| `sysinfo`                  | Retrieve detailed system info from the target.              |
-| `exit`                     | Exit the current target session (not the server itself).    |
-| `clear`                    | Clear the console output.                                   |
-| `shutdown`                 | Disconnect all clients and shutdown the server.             |
-| _Any other command_        | Will be executed remotely in the client's shell.            |
+| 🏷️ Command                                | 📝 Description                                             |
+|--------------------------------------------|------------------------------------------------------------|
+| `help`                                     | Show the help menu.                                        |
+| `targets`                                  | List all connected client machines.                        |
+| `select <int>`                             | Switch to a different client by its index (see `targets`). |
+| `stop <int>`                               | Disconnect a target by its index.                          |
+| `sysinfo`                                  | Retrieve detailed system info from the target.             |
+| `exit`                                     | Exit the current target session (not the server itself).   |
+| `clear`                                    | Clear the console output.                                  |
+| `shutdown`                                 | Disconnect all clients and shutdown the server.            |
+| `pull -s <target file> -d <destination storage>` | Fetch a file from the selected client                      |
+| _Any other command_                        | Will be executed remotely in the client's shell.           |
 
 ---
 
@@ -184,11 +191,11 @@ reversync
 │  [+] exit                     - Exit from the current target session                 │
 │  [+] sysinfo                  - Retrieve system information from the target machine  │
 │  [+] targets                  - List all connected machines                          │
-│  [+] select target <int>      - Select a target machine by its index                 │
+│  [+] select <int>             - Select a target machine by its index                 │
 │  [+] clear                    - Clear the console output                             │
 │  [+] help                     - Show this help menu                                  │
 │  [+] shutdown                 - Shut down the server and disconnect all targets      │
-│                                                                                      │
+│  ...                                                                                 │
 ╰──────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ Server Output @remote-shell >  ─────────────────────────────────────────────────────╮
 │ 1 - ('127.0.0.1', 35656)                                                             │
