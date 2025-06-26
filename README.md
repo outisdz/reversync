@@ -3,149 +3,142 @@
 [![Python](https://img.shields.io/badge/Python-3.7%2B-blue.svg)](https://www.python.org/)
 [![Rich Output](https://img.shields.io/badge/Output-Rich-6e4aff)](https://github.com/Textualize/rich)
 
-**reverSync** is an asynchronous Python reverse shell framework for secure, authenticated, and encrypted remote command execution and system information retrieval. It features a modern, styled server console interface, multi-target management, HMAC authentication, SSL encryption, and robust communication between server and client via asyncio.
+**reverSync** is a modern, asynchronous Python reverse shell framework for secure, authenticated, and encrypted remote command execution and system info retrieval. It features a styled interactive server console, multi-client management, HMAC authentication, SSL encryption, and robust asyncio-powered communication.
 
 ---
 
 ## 🚀 Features
 
-- ⚡ **Asynchronous Reverse Shell:** Both server and client use Python's `asyncio` for high-performance, non-blocking communication.
-- 🔒 **SSL Encryption:** All communication is secured with SSL/TLS to prevent eavesdropping.
-- 🛂 **HMAC Authentication:** Implements HMAC-based challenge-response authentication for client validation.
-- 💻 **Interactive Server Console:** The server features a rich terminal UI (using `rich` and `blessed`) for managing multiple targets interactively.
-- 🖥️ **Multi-client Management:** Easily connect, select, and manage multiple reverse shell clients from a single console.
-- 📝 **Command Execution:** Remotely execute shell commands on connected clients and view real-time output/errors.
-- 📁 **File Transfer (Pull):** Securely fetch files from remote clients using the `pull` command, with base64 encoding for safe transmission.
-- 🖲️ **Target System Info:** Retrieve and display system information from each connected client.
-- 🛰️ **Session Management:** Easily select, view, disconnect, and stop client sessions with intuitive commands.
-- ⬆️ **Persistent Command History:** Use arrow keys to navigate command history in the interactive console.
-- 📂 **Directory Navigation:** Use `cd` commands to change directories on the remote client.
-- 🧹 **Graceful Shutdown:** Cleanly disconnect clients and shut down the server with proper resource cleanup.
-- 🛡️ **Error Handling:** Robust error messages and feedback for all commands and connection states.
-- 🧩 **Extensible:** Easy to add more commands or functionality.
+- **Async Reverse Shell:** High-performance non-blocking I/O via Python `asyncio`.
+- **SSL Encryption:** All traffic protected with SSL/TLS.
+- **HMAC Authentication:** Challenge-response validation for clients.
+- **Rich Server Console:** Terminal UI using `rich` and `blessed`, with command history and multi-target support.
+- **Multi-client Management:** Connect, select, and control several clients at once.
+- **Remote Command Execution:** Run commands on any client, view real-time output and errors.
+- **File Pull:** Securely fetch files from clients (base64-encoded transfer).
+- **System Info:** Query and display detailed remote system data.
+- **Session Management:** Switch, view, disconnect, or stop client sessions.
+- **Directory Navigation:** Use `cd` to change remote directories.
+- **Graceful Shutdown:** Cleanly disconnect clients and shut down the server.
+- **Robust Error Handling:** Clear error messages and feedback.
+- **Extensible:** Easy to add commands and extend functionality.
 
 ---
 
 ## 📦 Requirements
 
-- 🐍 **Python 3.7+**
-- **Server-side dependencies:**
-  - [rich](https://pypi.org/project/rich/)
-  - [blessed](https://pypi.org/project/blessed/)
-  - [pyfiglet](https://pypi.org/project/pyfiglet/)
-- **Client:**
-  - The `client.py` file on the target/victim machine has **no external dependencies** beyond the Python standard library.
+- **Python 3.7+**
+- **Server dependencies:**
+  - [`rich`](https://pypi.org/project/rich/)
+  - [`blessed`](https://pypi.org/project/blessed/)
+  - [`pyfiglet`](https://pypi.org/project/pyfiglet/)
+- **Client:** Only the Python standard library.
 
-> **Note:**
-> SSL certificate and key files (`cert.pem`, `key.pem`) and a password file (`pswd`) are required for the server to start.
-
+**Note:**  
+You must generate `cert.pem`, `key.pem` (SSL certificate/key) and create a single-line password file named `pswd` before starting the server.
 
 ---
 
 ## 🛠️ Setup
 
-### 1. Clone the repository:
+1. **Clone the repo:**
     ```bash
     git clone https://github.com/outisdz/reversync.git
     cd reversync
     ```
-2. Install dependencies:
+2. **Install dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
-3. Generate SSL certificates (if not already present):
+3. **Generate SSL certificates:**
     ```bash
     openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
     ```
-4. Create a password file named `pswd` in the root directory with your shared secret (one line, no spaces).
+4. **Create a password file:**  
+   Add your shared secret (single line, no spaces) to a file named `pswd` in the root directory.
 
 ---
 
-### 2. Start the Server
+## 🚦 Starting
 
+**Start the Server:**  
 ```bash
 python server.py
 ```
+- Defaults: listens on `127.0.0.1:1234`.
+- Shows ASCII logo and interactive shell.
 
-- The server listens for incoming connections on `127.0.0.1:1234` by default.
-- You will see an ASCII-art logo and an interactive shell prompt.
-
-### 3. Start the Client(s)
-
+**Start the Client(s):**  
 On the target machine (or another terminal):
-
 ```bash
 python client.py
 ```
-
-- The client will attempt to connect to the server at `127.0.0.1:1234`
-  (edit `SERVER_HOST` and `SERVER_PORT` in `client.py` to adjust).
-- When prompted, enter the shared secret (password) used by the server.
+- Connects to `127.0.0.1:1234` (edit `SERVER_HOST` and `SERVER_PORT` in `client.py` to change).
+- Enter the shared secret when prompted.
 
 ---
 
 ## 🖥️ Server Console Commands
 
-| 🏷️ Command                                | 📝 Description                                             |
-|--------------------------------------------|------------------------------------------------------------|
-| `help`                                     | Show the help menu.                                        |
-| `targets`                                  | List all connected client machines.                        |
-| `select <int>`                             | Switch to a different client by its index (see `targets`). |
-| `stop <int>`                               | Disconnect a target by its index.                          |
-| `sysinfo`                                  | Retrieve detailed system info from the target.             |
-| `exit`                                     | Exit the current target session (not the server itself).   |
-| `clear`                                    | Clear the console output.                                  |
-| `shutdown`                                 | Disconnect all clients and shutdown the server.            |
-| `pull -s <target file> -d <destination storage>` | Fetch a file from the selected client                      |
-| _Any other command_                        | Will be executed remotely in the client's shell.           |
+| Command                                        | Description                                               |
+|------------------------------------------------|-----------------------------------------------------------|
+| `help`                                         | Show help menu                                            |
+| `targets`                                      | List all connected clients                                |
+| `select <int>`                                 | Select a client by index                                  |
+| `stop <int>`                                   | Disconnect a client by index                              |
+| `sysinfo`                                      | Get system info from target                               |
+| `exit`                                         | Exit from current target session                          |
+| `clear`                                        | Clear the console output                                  |
+| `shutdown`                                     | Disconnect all clients and shut down server               |
+| `pull -s <target file> -d <destination>`        | Download file from client                                 |
+| _(any other command)_                          | Executes remotely on the client's shell                   |
 
 ---
 
-## 📁 File Overview
+## 📁 File Structure
 
-- **server.py**: Main server logic, connection management, authentication, and interactive command loop.
-- **client.py**: Client logic that connects to the server, authenticates, and executes commands.
-- **interactiveconsole.py**: Terminal UI and input/output handling for the server using blessed and rich.
-- **targetsInfo.py**: Management and data structure for connected targets.
-- **sysInfo.py**: Utility to gather system information on the client.
+- `server.py`: Main server logic, authentication, interactive command loop.
+- `client.py`: Minimal client logic, shell command execution.
+- `interactiveconsole.py`: Terminal UI and input/output for server.
+- `targetsInfo.py`: Target management and session data.
+- `sysInfo.py`: System info gathering on client.
 
 ---
 
 ## ⚠️ Security Warning
 
-> **Never expose this server to the public internet unless you understand the security implications.**
+> **Never expose this server to the public internet unless you understand the risks.**
 >
-> - 🔒 **All data is sent over SSL/TLS encryption, but authentication relies on a shared secret file.**
-> - 🧑‍💻 **Anyone who has your certificate and password can connect and execute commands on the client.**
-> - **Always use strong, unique secrets and protect your key/password files.**
+> - All communication is SSL/TLS encrypted, but authentication is via a shared secret.
+> - Anyone with your certificate and password can run commands on your clients.
+> - Use strong, unique secrets and protect your key/password files.
 
 ---
 
 ## 🛠️ Customization
 
-- Change the server IP/port in both `server.py` and `client.py`.
-- Add or modify commands in `server.py` and `client.py` for custom tasks.
-- Adjust the ASCII logo and UI in `interactiveconsole.py` to suit your needs.
+- Change server IP/port in both `server.py` and `client.py`.
+- Add or modify commands in `server.py` and `client.py`.
+- Customize logo/UI in `interactiveconsole.py`.
 
 ---
 
 ## 📄 License
 
-MIT License. See `LICENSE` file for details.
+MIT License. See `LICENSE` for details.
 
 ---
 
 ## 👏 Credits
 
-- [rich](https://github.com/Textualize/rich) for styled terminal output
-- [blessed](https://github.com/jquast/blessed) for terminal handling
-- [pyfiglet](https://github.com/pwaller/pyfiglet) for ASCII art
+- [`rich`](https://github.com/Textualize/rich)
+- [`blessed`](https://github.com/jquast/blessed)
+- [`pyfiglet`](https://github.com/pwaller/pyfiglet)
 
 ---
 
 ## 💻 Example Session
 
-Server:
 ```
 $ python server.py
 
@@ -214,8 +207,8 @@ reversync
 
 ## 🤝 Contributing & Feedback
 
-> **Feel free to modify and improve this project as you like—I will read every comment and suggestion!**
+> Suggestions and improvements welcome—feel free to open an issue or PR!
 
 ---
 
-**Enjoy hacking (ethically)!** 🚀
+**Hack responsibly!** 🚀
