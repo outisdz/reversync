@@ -211,4 +211,4 @@ reversync
 
 ---
 
-**Hack responsibly!** 🚀
+**Enjoy hacking (ethically)!** 🚀
