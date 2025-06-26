@@ -13,6 +13,7 @@ class Targets:
         self.connections = {}
         self.current_target = ''
         self.info = {}
+        self.host_cwd = '.'
 
     def __str__(self) -> str:
         if not self.connections:
@@ -22,6 +23,7 @@ class Targets:
     def delete(self, addr: str):
         if addr in self.connections:
             del self.connections[addr]
+            del self.info[addr]
 
     def change_target(self, i=0):
         if list(self.connections):
@@ -61,5 +63,5 @@ class Targets:
     @property
     def prompt(self):
         if f"{self.username}{self.hostname}".strip():
-            return f"{self.username}@{self.hostname}@{self.cwd} > "
+            return f"{self.username}@{self.hostname} > "
         return "@remote-shell > "
