@@ -20,6 +20,7 @@ CERT_FILE = 'cert.pem'
 KEY_FILE = 'key.pem'
 PASSWORD_FILE = 'pswd'
 
+
 async def send(writer: asyncio.StreamWriter, data: bytes):
     """
     Sends command to the target.
@@ -186,7 +187,7 @@ class TargetControlConsole:
                     console.output = f'{targets}'
                     continue
 
-                if command_lower == "help":
+                if command_lower == "help" and not targets.current_target:
                     console.output = (
                         "Available Commands:\n"
                         " [+] help                      - Show this help menu\n"

