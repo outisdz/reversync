@@ -12,14 +12,50 @@ from asyncio import CancelledError, IncompleteReadError
 from interactiveconsole import InteractiveConsole
 from targetsInfo import TargetInfo, Targets
 from pathlib import Path
+import argparse
 
-# Server configuration
-SERVER_HOST = '127.0.0.1'
-SERVER_PORT = 1234
-CERT_FILE = 'cert.pem'
-KEY_FILE = 'key.pem'
-PASSWORD_FILE = 'pswd'
+def parse_arguments():
+    """
+    Parse and return command-line arguments for the TLS reverse shell server.
+    Includes certificate, key, password, IP address, and port configuration.
+    """
+    parser = argparse.ArgumentParser(
+        description="reversync is a secure, asynchronous Python reverse shell framework"
+                    " using SSL and asyncio for remote command execution. "
+    )
 
+    parser.add_argument(
+        '--cert',
+        help='Path to TLS certificate file (default: cert.pem)',
+        default='cert.pem'
+    )
+
+    parser.add_argument(
+        '--key',
+        help='Path to TLS private key file (default: key.pem)',
+        default='key.pem'
+    )
+
+    parser.add_argument(
+        '--pswd',
+        help='Path to password file used for authentication (default: pswd)',
+        default='pswd'
+    )
+
+    parser.add_argument(
+        '--listen',
+        help='IP address to bind and listen on (default: 127.0.0.1)',
+        default='127.0.0.1'
+    )
+
+    parser.add_argument(
+        '--port',
+        type=int,
+        help='Port number to listen on (default: 1234)',
+        default=1234
+    )
+
+    return parser.parse_args()
 
 async def send(writer: asyncio.StreamWriter, data: bytes):
     """
@@ -124,7 +160,6 @@ async def handle_reverse_shell_connection(reader: asyncio.StreamReader, writer: 
         while True:
             header = await reader.readexactly(4)
             length = struct.unpack(">I", header)[0]
-
             response = await reader.readexactly(length)
             response = setup_data(response, client_address)
             if client_address == targets.current_address:
@@ -358,13 +393,17 @@ async def run_reverse_shell_server():
 # Entry point for starting the reverse shell server
 if __name__ == "__main__":
     # Initialize target manager and main console instance
+    args = parse_arguments()
+    SERVER_HOST = args.listen
+    SERVER_PORT = args.port
+    CERT_FILE = args.cert
+    KEY_FILE = args.key
+    PASSWORD_FILE = args.pswd
     targets = Targets()
     console = InteractiveConsole(logo="reversync", shell='@remote-shell > ')
-
     if not verify_files(CERT_FILE, KEY_FILE, PASSWORD_FILE):
         console.error = 'File verification failed.'
         sys.exit(0)
-
     try:
         asyncio.run(run_reverse_shell_server())
     except OSError as e:

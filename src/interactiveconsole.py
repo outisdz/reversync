@@ -1,12 +1,10 @@
 from blessed import Terminal
 from rich import print as rprint
 from rich.panel import Panel
-from rich.pretty import pprint
 from rich.text import Text
 from rich import box
 import pyfiglet
 import readline
-
 
 BOLD = "\033[1m"
 GREEN = "\033[32m"
@@ -144,39 +142,29 @@ class InteractiveConsole:
                 if not key:
                     continue
 
-                if key.name == 'KEY_UP':
-                    self._navigate_up()
-                    continue
-
-                if key.name == 'KEY_DOWN':
-                    self._navigate_down()
-                    continue
-
-                if key.name == 'KEY_LEFT':
-                    self._move_left()
-                    continue
-
-                if key.name == 'KEY_RIGHT':
-                    self._move_right()
-                    continue
-
-                if key.name == 'KEY_BACKSPACE':
-                    self._delete()
-                    continue
-
-                if key.name == "KEY_ENTER":
-                    # Process entered command
-                    data = ''.join(self._input_buffer).strip()
-                    if not data:
-                        continue
-                    self.print_input(data)
-                    for i in range(1, readline.get_current_history_length()+1):
-                        if data.strip() == readline.get_history_item(i).strip():
-                            return data
-                    readline.add_history(data)
-                    self._history_index = readline.get_current_history_length()
-                    return data
-
+                match key.name:
+                    case 'KEY_UP':
+                        self._navigate_up()
+                    case 'KEY_DOWN':
+                        self._navigate_down()
+                    case 'KEY_LEFT':
+                        self._move_left()
+                    case 'KEY_RIGHT':
+                        self._move_right()
+                    case 'KEY_BACKSPACE':
+                        self._delete()
+                    case 'KEY_ENTER':
+                        # Process entered command
+                        data = ''.join(self._input_buffer).strip()
+                        if not data:
+                            continue
+                        self.print_input(data)
+                        for i in range(1, readline.get_current_history_length() + 1):
+                            if data.strip() == readline.get_history_item(i).strip():
+                                return data
+                        readline.add_history(data)
+                        self._history_index = readline.get_current_history_length()
+                        return data
                 if key.isprintable():
                     self._print_key(key)
             return ''

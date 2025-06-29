@@ -31,7 +31,6 @@ class ReverseShellClient:
     """
     Reverse shell client that connects to a server and executes shell commands remotely.
     """
-
     def __init__(self):
         self.reader = None
         self.writer = None
