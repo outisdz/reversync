@@ -240,7 +240,7 @@ class TargetControlConsole:
                     )
                     continue
 
-                if command_lower == "shutdown":
+                if command_lower == "shutdown" and not targets.current_target:
                     console.output = "[-] Closing connection and shutting down server..."
                     break
 
