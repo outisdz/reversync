@@ -1,9 +1,9 @@
-# reverSync: ⚡ Asynchronous Python Reverse Shell
+# reversync: ⚡ Asynchronous Python Reverse Shell
 
 [![Python](https://img.shields.io/badge/Python-3.7%2B-blue.svg)](https://www.python.org/)
 [![Rich Output](https://img.shields.io/badge/Output-Rich-6e4aff)](https://github.com/Textualize/rich)
 
-**reverSync** is a modern, asynchronous Python reverse shell framework for secure, authenticated, and encrypted remote command execution and system info retrieval. It features a styled interactive server console via `rich` and supports multi-client management, file transfer, and robust authentication.
+**reversync** is a modern, asynchronous Python reverse shell framework for secure, authenticated, and encrypted remote command execution and system info retrieval. It features a styled interactive server console via `rich` and supports multi-client management, file transfer, and robust authentication.
 
 ---
 
