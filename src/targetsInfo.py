@@ -14,6 +14,7 @@ class Targets:
         self.current_target = ''
         self.info = {}
         self.host_cwd = '.'
+        self.uploading_file = ''
 
     def __str__(self) -> str:
         if not self.connections:

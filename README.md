@@ -11,15 +11,15 @@
 
 - **Async Reverse Shell:** High-performance non-blocking I/O via Python `asyncio`.
 - **SSL Encryption:** All traffic protected with SSL/TLS.
-- **HMAC Authentication:** Challenge-response validation for clients using a password file.
+- **HMAC Authentication:** Challenge-response validation for targets using a password file.
 - **Rich Server Console:** Terminal UI using `rich` and `blessed`, with command history and multi-target support.
-- **Multi-client Management:** Connect, select, and control several clients at once.
+- **Multi-client Management:** Connect, select, and control several targets at once.
 - **Remote Command Execution:** Run commands on any client, view real-time output and errors.
-- **File Pull:** Securely fetch files from clients (base64-encoded transfer).
+- **File Pull & Push:** Securely fetch files from targets or upload files to targets (base64-encoded transfer).
 - **System Info:** Query and display detailed remote system data.
 - **Session Management:** Switch, view, disconnect, or stop client sessions.
 - **Extensible:** Easy to add commands and extend functionality.
-- **Graceful Shutdown & Error Handling:** Cleanly disconnect clients and shut down the server with clear error messages.
+- **Graceful Shutdown & Error Handling:** Cleanly disconnect targets and shut down the server with clear error messages.
 
 ---
 
@@ -87,14 +87,15 @@ python client.py
 | Command                                      | Description                                               |
 |-----------------------------------------------|-----------------------------------------------------------|
 | `help`                                       | Show help menu                                            |
-| `targets`                                    | List all connected clients                                |
+| `targets`                                    | List all connected targets                                |
 | `select <int>`                               | Select a client by index                                  |
 | `stop <int>`                                 | Disconnect a client by index                              |
 | `sysinfo`                                    | Get system info from target                               |
 | `exit`                                       | Exit from current target session                          |
 | `clear`                                      | Clear the console output                                  |
-| `shutdown`                                   | Disconnect all clients and shut down server               |
+| `shutdown`                                   | Disconnect all targets and shut down server               |
 | `pull -s <target file> -d <destination>`      | Download file from client                                 |
+| `push -s <local file> -d <remote destination>`| Upload file to client                                     |
 | _(any other command)_                        | Executes remotely on the client's shell                   |
 
 **File Pull Example:**  
@@ -102,6 +103,12 @@ python client.py
 pull -s /etc/hosts -d ./downloads
 ```
 Saves the file from client to the specified local directory (`downloads`).
+
+**File Push Example:**  
+```bash
+push -s ./localfile.txt -d /tmp/
+```
+Uploads a local file to the specified directory on the client.
 
 ---
 
@@ -131,7 +138,7 @@ You can now use the following command-line arguments for `server.py`:
 > **Never expose this server to the public internet unless you understand the risks.**
 >
 > - All communication is SSL/TLS encrypted, but authentication is via a shared secret.
-> - Anyone with your certificate and password can run commands on your clients.
+> - Anyone with your certificate and password can run commands on your targets.
 > - Use strong, unique secrets and protect your key/password files.
 
 ---

