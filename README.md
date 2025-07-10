@@ -78,7 +78,17 @@ On the target machine (or another terminal):
 ```bash
 python client.py
 ```
-- By default, connects to `127.0.0.1:1234`. Edit `SERVER_HOST` and `SERVER_PORT` in `client.py` to change.
+- By default, connects to `127.0.0.1:1234`.  
+- **To connect to a different server or port, use command-line arguments:**
+    ```bash
+    python client.py --host <server_ip> --port <server_port>
+    ```
+    For example:
+    ```bash
+    python client.py --host 192.168.1.10 --port 443
+    ```
+- At startup, you'll be prompted for the shared secret (password) used for authentication.
+- All client dependencies are from the Python standard library; no extra packages are required.
 
 ---
 
@@ -121,12 +131,21 @@ You can now use the following command-line arguments for `server.py`:
 - `--listen`: IP address to bind and listen on (default: `127.0.0.1`)
 - `--port`: Port number to listen on (default: `1234`)
 
+**For `client.py`:**
+- `--host`, `-H`: Server IP address to connect to (default: `127.0.0.1`)
+- `--port`, `-p`: Server port to connect to (default: `1234`)
+
+Example:
+```bash
+python client.py --host 10.10.10.20 --port 5555
+```
+
 ---
 
 ## 📁 File Structure
 
 - `server.py`: Main server logic, authentication, interactive command loop.
-- `client.py`: Minimal client logic, shell command execution.
+- `client.py`: Minimal client logic, shell command execution, argument parsing, HMAC authentication.
 - `interactiveconsole.py`: Terminal UI and input/output for server.
 - `targetsInfo.py`: Target management and session data.
 - `sysInfo.py`: System info gathering on client.
@@ -145,7 +164,7 @@ You can now use the following command-line arguments for `server.py`:
 
 ## 🛠️ Customization
 
-- Change server IP/port with command-line arguments.
+- Change server or client IP/port with command-line arguments.
 - Add or modify commands in `server.py` and `client.py`.
 - Customize logo/UI in `interactiveconsole.py`.
 
