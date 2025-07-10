@@ -7,6 +7,12 @@
 
 ---
 
+## 🎬 Example Usage
+
+![Demo](assets/demo.gif)
+
+---
+
 ## 🚀 Features
 
 - **Async Reverse Shell:** High-performance non-blocking I/O via Python `asyncio`.
