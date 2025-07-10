@@ -3,13 +3,15 @@ import base64
 import hashlib
 import hmac
 import secrets
+import shutil
 import ssl
 import json
 import struct
 import subprocess
 import sys
 from asyncio import CancelledError, IncompleteReadError
-from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, DownloadColumn, \
+    TransferSpeedColumn, TimeRemainingColumn
 from interactiveconsole import InteractiveConsole
 from targetsInfo import TargetInfo, Targets
 from pathlib import Path
@@ -100,55 +102,50 @@ async def upload(file, dpath, writer: asyncio.StreamWriter):
         writer (asyncio.StreamWriter): Stream writer used to send data to the target.
 
     """
-    try:
-        # Open the file in binary read mode
-        with open(file, 'rb') as f:
-            chunk_size = 8192  # 8KB per chunk
-            total_size = Path(file).stat().st_size  # Get total size for progress tracking
+    # Open the file in binary read mode
+    with open(file, 'rb') as f:
+        chunk_size = 8192  # 8KB per chunk
+        total_size = Path(file).stat().st_size  # Get total size for progress tracking
+        # Show live progress bar during transferring
+        progress = Progress(
+                    SpinnerColumn(),
+                    TextColumn("[bold blue]{task.fields[filename]}", justify="right"),
+                    BarColumn(bar_width=None),
+                    "[progress.percentage]{task.percentage:>3.1f}%",
+                    "•",
+                    DownloadColumn(),
+                    "•",
+                    TransferSpeedColumn(),
+                    "•",
+                    TimeRemainingColumn(),
+                )
+        console._clear_prompt()
+        console.line()
+        progress.console.log(f'Transferring file {Path(file).name} to target host {targets.hostname} at address {targets.current_address}')
+        print()
+        task = progress.add_task("Uploading",filename=Path(file).name, total=total_size)
+        with progress:
+            while True:
+                # Read next chunk from file
+                chunk = f.read(chunk_size)
+                progress.update(task, advance=chunk_size)
 
-            console._clear_prompt()
-            console.line()
-            console.log(f'Transferring file {Path(file).name} to target host {targets.hostname} at address {targets.current_address}')
-            print()
+                # If no more data, break the loop
+                if not chunk:
+                    break
 
-            # Show live progress bar during transferring
-            with Progress(
-                SpinnerColumn(),
-                *Progress.get_default_columns(),
-                TimeElapsedColumn(),
-            ) as progress:
-                task = progress.add_task("Uploading", total=total_size)
-
-                while True:
-                    # Read next chunk from file
-                    chunk = f.read(chunk_size)
-                    progress.update(task, advance=chunk_size)
-
-                    # If no more data, break the loop
-                    if not chunk:
-                        break
-
-                    # Encode chunk as base64 and send with 'sending' status
-                    encoded_data = base64.b64encode(chunk).decode('ascii')
-                    data = json.dumps(
+                # Encode chunk as base64 and send with 'sending' status
+                encoded_data = base64.b64encode(chunk).decode('ascii')
+                data = json.dumps(
                         {'cmd': 'push', 'stat': 'sending', 'type': 'file', 'source_file': Path(file).name,
                          'destination': dpath, 'data': encoded_data})
-                    await send(writer, data.encode('ascii'))
-        data = json.dumps(
+                await send(writer, data.encode('ascii'))
+    data = json.dumps(
                 {'cmd': 'push', 'stat': 'end', 'type': 'file', 'source_file': Path(file).name,'destination': dpath})
-        await send(writer, data.encode('ascii'))
-        print()
-        console.log(f'All files have been successfully transferred to {targets.hostname} at {targets.current_address}')
-        console.line()
-        return
-
-    # Handle common file-related errors gracefully
-    except IsADirectoryError:
-        console.error = f'{file} is a Directory'
-    except PermissionError:
-        console.error = f'Permission denied: {file}'
-    except FileNotFoundError:
-        console.error = f'No such file: {file}'
+    await send(writer, data.encode('ascii'))
+    print()
+    progress.console.log(f'All files have been successfully transferred to {targets.hostname} at {targets.current_address}')
+    console.line()
     return
 
 def setup_data(data: bytes, address: str):
@@ -161,8 +158,8 @@ def setup_data(data: bytes, address: str):
 
 def resolve_path(path: str) -> str:
     """
-        Resolves the path to an absolute path, handling user home (~) and empty input.
-        """
+    Resolves the path to an absolute path, handling user home (~) and empty input.
+    """
     if not path:
         return str(Path.home())
     if path.startswith('~'):
@@ -407,6 +404,17 @@ class TargetControlConsole:
                             try:
                                 index = arg.index('-s')
                                 file = resolve_path(arg[index + 1])
+                                if not Path(file).exists():
+                                    console.error = f'{file} does not exist'
+                                    continue
+                                if Path(file).owner() == 'root':
+                                    console.error = f'Permission denied: {file}'
+                                    continue
+                                if Path(file).is_dir():
+                                    file = shutil.make_archive(Path(file).name, 'tar',
+                                                               root_dir=file.removesuffix(Path(file).name),
+                                                               base_dir=Path(file).name)
+                                    console.output = f'{file} is an archive'
                                 targets.uploading_file = file
                                 # Send initial command to notify the receiver of an incoming file
                                 data = json.dumps(
