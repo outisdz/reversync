@@ -166,6 +166,12 @@ def resolve_path(path: str) -> str:
         return str(Path(path).expanduser())
     return str(Path(path).absolute())
 
+def check_permission(file: str) -> bool:
+    try:
+        with open(file, 'a'):
+            return True
+    except PermissionError:
+        return False
 
 async def perform_hmac_challenge(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> bool:
     """
@@ -380,7 +386,7 @@ class TargetControlConsole:
                                     if not Path(path).is_dir():
                                         console.error = f'{path} is not a directory'
                                         continue
-                                    if Path(path).owner() == 'root':
+                                    if not check_permission(file):
                                         console.error = f'Permission denied: {path}'
                                         continue
                                     targets.host_cwd = path
@@ -407,7 +413,7 @@ class TargetControlConsole:
                                 if not Path(file).exists():
                                     console.error = f'{file} does not exist'
                                     continue
-                                if Path(file).owner() == 'root':
+                                if not check_permission(file):
                                     console.error = f'Permission denied: {file}'
                                     continue
                                 if Path(file).is_dir():
