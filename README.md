@@ -128,26 +128,6 @@ Uploads a local file to the specified directory on the client.
 
 ---
 
-## ⚙️ Command-Line Options
-
-You can now use the following command-line arguments for `server.py`:
-- `--cert`: Path to TLS certificate file (default: `cert.pem`)
-- `--key`: Path to TLS private key file (default: `key.pem`)
-- `--pswd`: Path to password file used for authentication (default: `pswd`)
-- `--listen`: IP address to bind and listen on (default: `127.0.0.1`)
-- `--port`: Port number to listen on (default: `1234`)
-
-**For `client.py`:**
-- `--host`, `-H`: Server IP address to connect to (default: `127.0.0.1`)
-- `--port`, `-p`: Server port to connect to (default: `1234`)
-
-Example:
-```bash
-python client.py --host 10.10.10.20 --port 5555
-```
-
----
-
 ## 📁 File Structure
 
 - `server.py`: Main server logic, authentication, interactive command loop.
@@ -170,9 +150,16 @@ python client.py --host 10.10.10.20 --port 5555
 
 ## 🛠️ Customization
 
-- Change server or client IP/port with command-line arguments.
-- Add or modify commands in `server.py` and `client.py`.
-- Customize logo/UI in `interactiveconsole.py`.
+- **Flexible Networking:** Change server or client IP/port with easy command-line arguments.
+- **Command Extensibility:** Effortlessly add or modify commands in `server.py` and `client.py` to fit your workflow.
+- **UI Customization:** Personalize the look and feel—edit the rich console's logo and interface in `interactiveconsole.py`.
+- **Authentication Freedom:** Want more security? Replace the password authentication with your own encryption or key exchange scheme.
+- **Multi-language Clients:** You can write your own client in any language (C++, Go, etc.)—just follow the same protocol.
+- **Request Features:** Need a specific command or function? Open an issue or pull request—community contributions are welcome!
+- **Modular Structure:** The codebase is organized so you can add more modules or integrations (think custom logging, notifications, or automation).
+- **Educational Playground:** Great for learning about asynchronous networking, SSL/TLS in Python, remote management, and secure shell concepts.
+- **Scriptability:** Automate tasks or integrate with other tools by extending the server’s command set.
+- **Payload Flexibility:** You are welcome to add more payloads for demonstration or educational purposes (ethically, of course). Contribute your own scripts, modules, or ideas to expand the toolkit!
 
 ---
 
