@@ -1,3 +1,8 @@
+<!-- GITHUB BANNER -->
+<p align="center">
+  <img src="assets/reversync.jpeg" alt="reversync banner" width="100%"/>
+</p>
+
 # reversync: ⚡ Asynchronous Python Reverse Shell
 
 [![Python](https://img.shields.io/badge/Python-3.7%2B-blue.svg)](https://www.python.org/)
