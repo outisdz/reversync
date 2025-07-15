@@ -2,6 +2,7 @@ import asyncio
 import base64
 import hashlib
 import hmac
+import os
 import secrets
 import shutil
 import ssl
@@ -166,12 +167,6 @@ def resolve_path(path: str) -> str:
         return str(Path(path).expanduser())
     return str(Path(path).absolute())
 
-def check_permission(file: str) -> bool:
-    try:
-        with open(file, 'a'):
-            return True
-    except PermissionError:
-        return False
 
 async def perform_hmac_challenge(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> bool:
     """
@@ -386,7 +381,7 @@ class TargetControlConsole:
                                     if not Path(path).is_dir():
                                         console.error = f'{path} is not a directory'
                                         continue
-                                    if not check_permission(file):
+                                    if not os.access(path,os.X_OK):
                                         console.error = f'Permission denied: {path}'
                                         continue
                                     targets.host_cwd = path
@@ -413,15 +408,35 @@ class TargetControlConsole:
                                 if not Path(file).exists():
                                     console.error = f'{file} does not exist'
                                     continue
-                                if not check_permission(file):
+                                # check permission
+                                if not os.access(file,os.X_OK):
                                     console.error = f'Permission denied: {file}'
                                     continue
                                 if Path(file).is_dir():
-                                    file = shutil.make_archive(Path(file).name, 'tar',
-                                                               root_dir=file.removesuffix(Path(file).name),
-                                                               base_dir=Path(file).name)
-                                    console.output = f'{file} is an archive'
-                                targets.uploading_file = file
+                                    archive_name = Path(file).name
+                                    root_dir = Path(file).parent
+                                    base_dir = archive_name
+                                    console._clear_prompt()
+                                    # Setup rich progress bar with spinner
+                                    with Progress(
+                                            SpinnerColumn(),
+                                            TextColumn(
+                                                "[bold blue]Archiving directory: [green]{task.fields[filename]}"),
+                                            transient=True,
+                                    ) as progress:
+                                        task = progress.add_task(
+                                            description="Archiving",
+                                            filename=archive_name,
+                                            total=None  # Size isn't known until it's archived
+                                        )
+
+                                        # Create the archive
+                                        archive_file = shutil.make_archive(archive_name, 'tar', root_dir=root_dir,
+                                                                           base_dir=base_dir)
+
+                                        progress.update(task, completed=1)
+                                    console.output = f"[+] Directory '{archive_name}' has been archived as '{archive_file}'"
+                                    targets.uploading_file = archive_file
                                 # Send initial command to notify the receiver of an incoming file
                                 data = json.dumps(
                                     {'cmd': 'push', 'stat': 'pending', 'type': 'file', 'source_file': Path(file).name,
