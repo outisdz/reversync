@@ -416,7 +416,6 @@ class TargetControlConsole:
                                     archive_name = Path(file).name
                                     root_dir = Path(file).parent
                                     base_dir = archive_name
-                                    console._clear_prompt()
                                     # Setup rich progress bar with spinner
                                     with Progress(
                                             SpinnerColumn(),
@@ -431,12 +430,12 @@ class TargetControlConsole:
                                         )
 
                                         # Create the archive
-                                        archive_file = shutil.make_archive(archive_name, 'tar', root_dir=root_dir,
+                                        file = shutil.make_archive(archive_name, 'tar', root_dir=root_dir,
                                                                            base_dir=base_dir)
 
                                         progress.update(task, completed=1)
-                                    console.output = f"[+] Directory '{archive_name}' has been archived as '{archive_file}'"
-                                    targets.uploading_file = archive_file
+                                    console.output = f"[+] Directory '{archive_name}' has been archived as '{file}' name: {Path(file).name}"
+                                    targets.uploading_file = file
                                 # Send initial command to notify the receiver of an incoming file
                                 data = json.dumps(
                                     {'cmd': 'push', 'stat': 'pending', 'type': 'file', 'source_file': Path(file).name,
